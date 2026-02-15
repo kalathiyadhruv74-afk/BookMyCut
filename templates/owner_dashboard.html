@@ -1,0 +1,231 @@
+{% extends 'base.html' %}
+
+{% block title %}Owner Dashboard{% endblock %}
+
+{% block content %}
+<div class="row align-items-center mb-5 fade-in">
+    <div class="col-12">
+        <h1 class="fw-bold text-white mb-1">Owner Dashboard</h1>
+        <p class="text-muted">Monitor your shop's performance and manage appointments</p>
+    </div>
+</div>
+
+{% if not shop %}
+<div class="glass-card p-5 text-center fade-in rounded-5">
+    <div class="bg-surface-color p-4 rounded-circle d-inline-flex mx-auto mb-4 animate-float">
+        <i class="fas fa-store-slash fa-4x text-warning opacity-50"></i>
+    </div>
+    <h2 class="text-white fw-bold mb-3">Shop Profile Incomplete</h2>
+    <p class="text-muted mb-5 fs-5 mx-auto col-md-6">Welcome! To start receiving bookings, first set up your
+        professional shop profile.</p>
+    <a href="{{ url_for('add_shop') }}" class="btn btn-primary btn-lg rounded-pill px-5 py-3 shadow-xl">Setup My Shop <i
+            class="fas fa-arrow-right ms-2"></i></a>
+</div>
+{% else %}
+
+<!-- Shop Header Card -->
+<div class="glass-card p-4 mb-5 fade-in rounded-4 shadow-xl border-primary border-opacity-10">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <div class="d-flex align-items-center mb-2">
+                <h2 class="fw-bold text-white mb-0 me-3">{{ shop.name }}</h2>
+                <span class="badge badge-soft-primary rounded-pill"><i class="fas fa-check-circle me-1"></i> Verified
+                    Merchant</span>
+            </div>
+            <p class="text-muted mb-3"><i class="fas fa-map-marker-alt text-primary me-2"></i> {{ shop.area }} | {{
+                shop.contact_number }}</p>
+            <div class="d-flex gap-3">
+                <div class="text-start">
+                    <span class="text-muted small d-block">Total Services</span>
+                    <span class="text-white fw-bold">{{ services|length }} Items</span>
+                </div>
+                <div class="vr bg-white opacity-10 mx-2"></div>
+                <div class="text-start">
+                    <span class="text-muted small d-block">Recent Bookings</span>
+                    <span class="text-white fw-bold">{{ appointments|length }} New</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 text-md-end mt-4 mt-md-0">
+            <a href="{{ url_for('edit_shop') }}" class="btn btn-outline-light rounded-pill px-4 card-hover-effect">
+                <i class="fas fa-sliders-h me-2"></i> Manage Shop
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Services Management -->
+    <div class="col-lg-5">
+        <div class="glass-card h-100 fade-in delay-1 overflow-hidden">
+            <div
+                class="p-4 border-bottom border-white border-opacity-10 d-flex justify-content-between align-items-center">
+                <h4 class="mb-0 fw-bold text-white">Services List</h4>
+                <a href="{{ url_for('add_service') }}" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm">
+                    <i class="fas fa-plus me-1"></i> Add
+                </a>
+            </div>
+            <div class="p-4">
+                {% if services %}
+                <div class="d-flex flex-column gap-3">
+                    {% for service in services %}
+                    <div
+                        class="glass-card p-3 bg-white bg-opacity-5 border-0 rounded-3 d-flex justify-content-between align-items-center card-hover-effect">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-primary bg-opacity-10 p-2 rounded-circle me-3">
+                                <i class="fas fa-scissors text-primary small"></i>
+                            </div>
+                            <div>
+                                <span class="text-white fw-bold d-block">{{ service.name }}</span>
+                                <span class="text-muted x-small"><i class="fas fa-clock me-1"></i> {{
+                                    service.duration_minutes }} mins</span>
+                            </div>
+                        </div>
+                        <span class="badge badge-soft-secondary rounded-pill fw-bold">₹{{ service.price }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-concierge-bell fa-2x text-muted opacity-25 mb-3"></i>
+                    <p class="text-muted">No services listed yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Appointments -->
+    <div class="col-lg-7">
+        <div class="glass-card h-100 fade-in delay-2 overflow-hidden">
+            <div class="p-4 border-bottom border-white border-opacity-10">
+                <h4 class="mb-0 fw-bold text-white">Latest Appointments</h4>
+            </div>
+            <div class="p-0">
+                {% if appointments %}
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0" style="--bs-table-bg: transparent;">
+                        <thead class="bg-white bg-opacity-5">
+                            <tr class="text-muted small">
+                                <th class="ps-4 py-3">Schedule</th>
+                                <th class="py-3">Customer</th>
+                                <th class="py-3">Details & Status</th>
+                                <th class="py-3 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for appt in appointments %}
+                            <tr class="border-bottom border-white border-opacity-5 align-middle">
+                                <td class="ps-4 py-4">
+                                    <div class="text-white fw-bold">{{ appt.appointment_date }}</div>
+                                    <div
+                                        class="badge-soft-secondary rounded-pill x-small px-2 py-1 mt-1 d-inline-block">
+                                        {{ appt.appointment_time }}</div>
+                                </td>
+                                <td class="py-4">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-secondary bg-opacity-10 rounded-circle w-35 h-35 d-flex align-items-center justify-content-center me-3"
+                                            style="width: 35px; height: 35px;">
+                                            <i class="fas fa-user text-muted small"></i>
+                                        </div>
+                                        <span class="text-white fw-medium">{{ appt.user_name }}</span>
+                                    </div>
+                                </td>
+                                <td class="py-4">
+                                    <div class="text-light small mb-2 fw-medium">{{ appt.services_list|truncate(30) }}
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <span
+                                            class="badge badge-soft-{{ 'success' if appt.status == 'confirmed' else ('info' if appt.status == 'completed' else ('danger' if appt.status == 'cancelled' else 'warning')) }} px-2 py-1">
+                                            {{ appt.status|title }}
+                                        </span>
+                                        {% if appt.payment_status == 'paid' %}
+                                        <span class="badge badge-soft-success px-2 py-1">
+                                            <i class="fas fa-check-circle me-1"></i> Paid
+                                        </span>
+                                        {% elif appt.payment_status == 'partially_paid' %}
+                                        <span class="badge badge-soft-warning px-2 py-1">
+                                            <i class="fas fa-adjust me-1"></i> Partial (50%)
+                                        </span>
+                                        {% else %}
+                                        <span class="badge badge-soft-danger px-2 py-1">
+                                            <i class="fas fa-exclamation-circle me-1"></i> Unpaid
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="py-4 text-center">
+                                    <div class="d-flex justify-content-center gap-2">
+
+                                        {% if appt.status in ['pending', 'confirmed'] %}
+                                        <form action="{{ url_for('cancel_appointment', appointment_id=appt.id) }}"
+                                            method="POST" class="d-inline"
+                                            onsubmit="return confirm('Are you sure you want to cancel this booking?');">
+                                            <button type="submit"
+                                                class="btn btn-outline-danger btn-sm rounded-circle px-2"
+                                                title="Cancel Booking">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-calendar-times fa-2x text-muted opacity-25 mb-3"></i>
+                    <p class="text-muted">Waiting for your first booking!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reviews Section -->
+<div class="row mt-5 fade-in delay-3">
+    <div class="col-12">
+        <div class="glass-card p-4">
+            <h4 class="fw-bold text-white mb-4">Customer Love</h4>
+            {% if reviews %}
+            <div class="row g-4">
+                {% for review in reviews %}
+                <div class="col-md-6 col-xl-4">
+                    <div
+                        class="glass-card p-4 bg-white bg-opacity-5 border-0 border-start border-primary border-4 rounded-3 h-100 card-hover-effect">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="text-warning small d-flex gap-1">
+                                {% for i in range(review.rating) %}
+                                <i class="fas fa-star"></i>
+                                {% endfor %}
+                            </div>
+                            <span class="text-muted x-small">{{ review.created_at }}</span>
+                        </div>
+                        <p class="text-light mb-3 italic">"{{ review.comment }}"</p>
+                        <div class="d-flex align-items-center mt-auto">
+                            <div class="bg-primary bg-opacity-20 rounded-circle w-30 h-30 d-flex align-items-center justify-content-center me-2"
+                                style="width: 28px; height: 28px;">
+                                <span class="text-primary x-small fw-bold">{{ review.user_name[0]|upper }}</span>
+                            </div>
+                            <span class="text-muted small">{{ review.user_name }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {# TODO: Add a 'View All Reviews' if there are many #}
+            {% else %}
+            <div class="glass-card p-5 text-center bg-white bg-opacity-5 border-0 rounded-4">
+                <i class="fas fa-comment-dots fa-3x text-muted opacity-25 mb-3"></i>
+                <p class="text-muted mb-0">No feedback yet. Great service will bring them in!</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

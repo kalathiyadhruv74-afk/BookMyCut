@@ -1,0 +1,229 @@
+{% extends 'base.html' %}
+
+{% block title %}Home{% endblock %}
+
+
+{% block content %}
+<!-- Hero Section -->
+<div class="position-relative overflow-hidden p-5 mb-5 rounded-5 fade-in"
+    style="background: radial-gradient(circle at top right, rgba(139, 92, 246, 0.2), transparent), radial-gradient(circle at bottom left, rgba(6, 182, 212, 0.15), transparent), var(--surface-color); border: 1px solid var(--hero-border-clr); box-shadow: 0 0 50px rgba(0, 0, 0, 0.3); min-height: 70vh; display: flex; align-items: center;">
+
+    <!-- Animated background elements -->
+    <div class="position-absolute top-0 start-0 w-100 h-100 opacity-20" style="z-index: 0; pointer-events: none;">
+        <div class="position-absolute rounded-circle bg-primary blur-3xl float-slow"
+            style="width: 400px; height: 400px; top: -150px; right: -100px; filter: blur(120px); opacity: 0.6;"></div>
+        <div class="position-absolute rounded-circle bg-secondary blur-3xl animate-float"
+            style="width: 350px; height: 350px; bottom: -100px; left: -100px; filter: blur(100px); opacity: 0.5;"></div>
+        <div class="position-absolute rounded-circle bg-info blur-3xl float-slow"
+            style="width: 200px; height: 200px; top: 40%; left: 30%; filter: blur(80px); opacity: 0.3; animation-delay: -2s;">
+        </div>
+    </div>
+
+    <div class="container-fluid py-5 text-center position-relative" style="z-index: 1;">
+        <div class="badge-soft-primary rounded-pill px-4 py-2 mb-4 d-inline-flex align-items-center reveal reveal-scale"
+            style="border: 1px solid rgba(139, 92, 246, 0.3);">
+            <i class="fas fa-sparkles me-2"></i> Modern Grooming Redefined
+        </div>
+        <h1 class="display-2 fw-extrabold mb-4 reveal text-glow"
+            style="background: var(--hero-title-gradient); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -2px;">
+            Your Style, <span
+                style="background: linear-gradient(135deg, #a855f7, #06b6d4); -webkit-background-clip: text; background-clip: text;">Simplified.</span>
+        </h1>
+        <p class="col-lg-7 mx-auto fs-4 mb-5 reveal delay-1"
+            style="line-height: 1.6; color: var(--hero-text-clr); font-weight: 300;">
+            BookMyCut is the elite platform for modern grooming excellence. Experience seamless booking for the finest
+            barbers and salons.
+        </p>
+        <div class="d-flex justify-content-center gap-3 reveal delay-2">
+            {% if session.loggedin %}
+            {% if session.role == 'shop_owner' %}
+            <a class="btn btn-primary btn-lg px-5 py-3 rounded-pill shadow-lg d-flex align-items-center"
+                href="{{ url_for('owner_dashboard') }}">
+                <i class="fas fa-chart-pie me-2"></i> Dashboard Management
+            </a>
+            {% else %}
+            <a class="btn btn-primary btn-lg px-5 py-3 rounded-pill shadow-lg d-flex align-items-center"
+                href="{{ url_for('customer_dashboard') }}">
+                <i class="fas fa-calendar-alt me-2"></i> My Appointments
+            </a>
+            {% endif %}
+            {% else %}
+            <a class="btn btn-primary btn-lg px-5 py-3 rounded-pill shadow-lg" href="{{ url_for('register') }}">
+                Get Started <i class="fas fa-arrow-right ms-2"></i>
+            </a>
+            <a class="btn btn-outline-light btn-lg px-5 py-3 rounded-pill border-opacity-25"
+                href="{{ url_for('login') }}">
+                Partner Login
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Tour Sections -->
+<div id="learn-more" class="container py-5">
+    <!-- For Customers -->
+    {% if not session.loggedin or session.role == 'customer' %}
+    <div class="row align-items-center mb-5 pb-5 fade-in delay-3">
+        <div class="col-md-6 mb-5 mb-md-0">
+            <div class="position-relative">
+                <div class="glass-card p-3 animate-float overflow-hidden" style="border-radius: 30px;">
+                    <img src="https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&q=80&w=800"
+                        class="img-fluid rounded-4 shadow-2xl" alt="Barber Shop">
+                    <div class="position-absolute bottom-0 start-0 m-4 glass-card p-3 d-flex align-items-center shadow-lg"
+                        style="border-radius: 15px;">
+                        <div class="bg-success rounded-circle p-2 me-3"><i class="fas fa-check text-white small"></i>
+                        </div>
+                        <span class="text-white fw-bold">Verified Salons</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 ps-md-5">
+            <h6 class="text-uppercase fw-bold mb-3 d-flex align-items-center"
+                style="color: var(--secondary-color); letter-spacing: 3px;">
+                <span class="bg-secondary bg-opacity-20 p-2 rounded-circle me-3"><i
+                        class="fas fa-user-tag small"></i></span>
+                For Customers
+            </h6>
+            <h2 class="display-4 fw-bold mb-4 text-white" style="letter-spacing: -1px;">Find Your Perfect Cut</h2>
+            <p class="text-muted mb-5 fs-5">Join thousands of stylish individuals who trust BookMyCut for their grooming
+                needs.</p>
+
+            <div
+                class="glass-card p-4 mb-4 border-primary border-opacity-10 card-hover-effect glimmer-effect reveal reveal-right">
+                <div class="d-flex align-items-start">
+                    <div class="bg-primary bg-opacity-20 p-3 rounded-4 me-4 shadow-inner">
+                        <i class="fas fa-map-marked-alt fa-2x text-primary text-glow"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold text-white mb-2">Neighborhood Discovery</h5>
+                        <p class="text-muted small mb-0">Discover the best barbers in your area with verified ratings
+                            and detailed portfolios.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                class="glass-card p-4 mb-5 border-secondary border-opacity-10 card-hover-effect glimmer-effect reveal reveal-right delay-1">
+                <div class="d-flex align-items-start">
+                    <div class="bg-secondary bg-opacity-20 p-3 rounded-4 me-4 shadow-inner">
+                        <i class="fas fa-bolt fa-2x text-secondary text-glow"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold text-white mb-2">Instant Slot Selection</h5>
+                        <p class="text-muted small mb-0">Stop waiting on phones. Pick your 30-min window and book
+                            instantly with live availability.</p>
+                    </div>
+                </div>
+            </div>
+
+            <a href="{{ url_for('list_shops') if session.loggedin else url_for('login') }}"
+                class="btn btn-primary btn-lg rounded-pill px-5 py-3">
+                {{ 'Discover Salons' if session.loggedin else 'Find a Barber' }}
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- For Shop Owners -->
+    {% if not session.loggedin or session.role == 'shop_owner' %}
+    <div class="row align-items-center flex-md-row-reverse fade-in delay-4">
+        <div class="col-md-6 mb-5 mb-md-0">
+            <div class="position-relative">
+                <div class="glass-card p-3 animate-float overflow-hidden"
+                    style="animation-delay: 2s; border-radius: 30px;">
+                    <img src="https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?auto=format&fit=crop&q=80&w=800"
+                        class="img-fluid rounded-4 shadow-2xl" alt="Salon Management">
+                    <div class="position-absolute top-0 end-0 m-4 glass-card p-3 d-flex align-items-center shadow-lg"
+                        style="border-radius: 15px;">
+                        <div class="bg-primary rounded-circle p-2 me-3"><i
+                                class="fas fa-chart-line text-white small"></i></div>
+                        <span class="text-white fw-bold">Live Stats</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 pe-md-5">
+            <h6 class="text-uppercase fw-bold mb-3 d-flex align-items-center"
+                style="color: var(--primary-color); letter-spacing: 3px;">
+                <span class="bg-primary bg-opacity-20 p-2 rounded-circle me-3"><i
+                        class="fas fa-briefcase-medical small"></i></span>
+                For Business Owners
+            </h6>
+            <h2 class="display-4 fw-bold mb-4 text-white" style="letter-spacing: -1px;">Scale Your Operations</h2>
+            <p class="text-muted mb-5 fs-5">Empower your salon with tools designed for the modern grooming industry.</p>
+
+            <div
+                class="glass-card p-4 mb-4 border-primary border-opacity-10 card-hover-effect glimmer-effect reveal reveal-left">
+                <div class="d-flex align-items-start">
+                    <div class="bg-primary bg-opacity-20 p-3 rounded-4 me-4 shadow-inner">
+                        <i class="fas fa-users-cog fa-2x text-primary text-glow"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold text-white mb-2">Centralized Hub</h5>
+                        <p class="text-muted small mb-0">Efficiently manage appointments, staff availability, and
+                            customer profiles in one place.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                class="glass-card p-4 mb-5 border-info border-opacity-10 card-hover-effect glimmer-effect reveal reveal-left delay-1">
+                <div class="d-flex align-items-start">
+                    <div class="bg-info bg-opacity-20 p-3 rounded-4 me-4 shadow-inner">
+                        <i class="fas fa-layer-group fa-2x text-info text-glow"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold text-white mb-2">Service Architect</h5>
+                        <p class="text-muted small mb-0">Build your menu with precise durations. Our system handles the
+                            slot blocking for you.</p>
+                    </div>
+                </div>
+            </div>
+
+            <a href="{{ url_for('owner_dashboard') if session.loggedin and session.role == 'shop_owner' else url_for('register') }}"
+                class="btn btn-primary btn-lg rounded-pill px-5 py-3">
+                {{ 'Enter Dashboard' if session.loggedin and session.role == 'shop_owner' else 'Partner With Us' }}
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Social Proof -->
+<div class="container py-5 mt-5">
+    <div class="glass-card p-5 text-center fade-in delay-4 rounded-5" style="border-radius: 40px !important;">
+        <div class="row g-5 justify-content-center">
+            <div class="col-6 col-md-3 reveal reveal-scale delay-1">
+                <div class="bg-primary bg-opacity-10 p-3 rounded-circle d-inline-flex mb-3 shadow-inner">
+                    <i class="fas fa-store-alt text-primary fa-lg"></i>
+                </div>
+                <h2 class="fw-bold text-white mb-1">{{ stats.active_shops }}</h2>
+                <p class="text-muted small text-uppercase fw-bold" style="letter-spacing: 1px;">Trusted Partners</p>
+            </div>
+            <div class="col-6 col-md-3 reveal reveal-scale delay-2">
+                <div class="bg-secondary bg-opacity-10 p-3 rounded-circle d-inline-flex mb-3 shadow-inner">
+                    <i class="fas fa-check-double text-secondary fa-lg"></i>
+                </div>
+                <h2 class="fw-bold text-white mb-1">{{ stats.monthly_bookings }}+</h2>
+                <p class="text-muted small text-uppercase fw-bold" style="letter-spacing: 1px;">Monthly Success</p>
+            </div>
+            <div class="col-6 col-md-3 reveal reveal-scale delay-3">
+                <div class="bg-warning bg-opacity-10 p-3 rounded-circle d-inline-flex mb-3 shadow-inner">
+                    <i class="fas fa-star text-warning fa-lg"></i>
+                </div>
+                <h2 class="fw-bold text-white mb-1">{{ stats.avg_rating }}/5</h2>
+                <p class="text-muted small text-uppercase fw-bold" style="letter-spacing: 1px;">Average Satisfaction</p>
+            </div>
+            <div class="col-6 col-md-3 reveal reveal-scale delay-4">
+                <div class="bg-success bg-opacity-10 p-3 rounded-circle d-inline-flex mb-3 shadow-inner">
+                    <i class="fas fa-shield-alt text-success fa-lg"></i>
+                </div>
+                <h2 class="fw-bold text-white mb-1">{{ stats.reliability }}%</h2>
+                <p class="text-muted small text-uppercase fw-bold" style="letter-spacing: 1px;">System Reliability</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

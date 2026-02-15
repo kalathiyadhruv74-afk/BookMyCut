@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center fade-in">
+    <div class="col-md-8 col-lg-6">
+        <div class="glass-card p-5 scale-in">
+            <h2 class="fw-bold mb-4 text-center"><i class="fas fa-user-circle me-2"
+                    style="color: var(--primary-color);"></i> My Profile</h2>
+
+            <div class="text-center mb-4">
+                {% if user.profile_pic %}
+                <img src="{{ url_for('static', filename='uploads/profile_pics/' + user.profile_pic) }}"
+                    alt="Profile Picture" class="rounded-circle shadow-lg border border-2 border-primary"
+                    style="width: 150px; height: 150px; object-fit: cover;">
+                {% else %}
+                <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center mx-auto shadow-lg"
+                    style="width: 150px; height: 150px;">
+                    <i class="fas fa-user fa-4x text-light"></i>
+                </div>
+                {% endif %}
+            </div>
+
+            <form action="{{ url_for('profile') }}" method="post" enctype="multipart/form-data">
+                <div class="row g-3">
+                    <div class="col-md-12">
+                        <label for="profile_pic" class="form-label">Update Profile Picture</label>
+                        <input class="form-control" type="file" id="profile_pic" name="profile_pic" accept="image/*">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="name" class="form-label">Full Name</label>
+                        <input type="text" class="form-control" id="name" name="name" value="{{ user.name }}"
+                            maxlength="100" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" value="{{ user.email }}" disabled readonly
+                            style="background: rgba(0,0,0,0.2);">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="phone" class="form-label">Phone Number</label>
+                        <input type="tel" class="form-control" id="phone" name="phone"
+                            value="{{ user.phone_number or '' }}" placeholder="1234567890" pattern="[0-9]{10,15}">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="gender" class="form-label">Gender</label>
+                        <select class="form-select" id="gender" name="gender">
+                            <option value="" disabled {{ 'selected' if not user.gender }}>Select Gender</option>
+                            <option value="Male" {{ 'selected' if user.gender=='Male' }}>Male</option>
+                            <option value="Female" {{ 'selected' if user.gender=='Female' }}>Female</option>
+                            <option value="Other" {{ 'selected' if user.gender=='Other' }}>Other</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12">
+                        <label for="area" class="form-label">Area / Location</label>
+                        <input type="text" class="form-control" id="area" name="area" value="{{ user.area or '' }}"
+                            placeholder="e.g. Downtown, Westside" maxlength="100">
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg">Save Changes</button>
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-light">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

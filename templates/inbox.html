@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block title %}Notification Inbox{% endblock %}
+
+{% block content %}
+<div class="row align-items-center mb-5 fade-in">
+    <div class="col-md-6">
+        <h1 class="fw-bold text-white mb-1">Notifications</h1>
+        <p class="text-muted mb-0">Stay updated with your latest appointment and payment activity</p>
+    </div>
+    <div class="col-md-6 text-md-end mt-3 mt-md-0">
+        <a href="{{ url_for('customer_dashboard') if session.role == 'customer' else url_for('owner_dashboard') }}"
+            class="btn btn-outline-light rounded-pill px-4">
+            <i class="fas fa-arrow-left me-2 small"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<div class="row fade-in delay-1">
+    <div class="col-md-10 mx-auto">
+        {% if notifications %}
+        <div class="notification-container d-flex flex-column gap-3">
+            {% for note in notifications %}
+            <div class="glass-card p-4 reveal shadow-lg {% if not note.is_read %}border-primary border-opacity-25{% endif %}"
+                style="border-radius: 20px; transition: transform 0.3s ease;">
+                <div class="d-flex align-items-start gap-4">
+                    <div
+                        class="bg-{{ 'primary' if 'Booking' in note.title else 'success' if 'Payment' in note.title or 'Completed' in note.title else 'danger' if 'Cancelled' in note.title else 'info' }} bg-opacity-20 p-3 rounded-circle shadow-inner">
+                        <i
+                            class="fas {{ 'fa-calendar-check' if 'Booking' in note.title else 'fa-wallet' if 'Payment' in note.title else 'fa-check-circle' if 'Completed' in note.title else 'fa-times-circle' if 'Cancelled' in note.title else 'fa-bell' }} fa-lg text-{{ 'primary' if 'Booking' in note.title else 'success' if 'Payment' in note.title or 'Completed' in note.title else 'danger' if 'Cancelled' in note.title else 'info' }}"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <h5 class="fw-bold text-white mb-0">{{ note.title }}</h5>
+                            <span class="text-muted small">{{ note.created_at.strftime('%d %b, %H:%M') }}</span>
+                        </div>
+                        <p class="text-muted mb-2">{{ note.message }}</p>
+                        {% if note.appointment_id %}
+                        <div class="d-flex align-items-center gap-3 mt-2">
+                            <div class="badge badge-soft-light rounded-pill px-3 py-1">
+                                <i class="fas fa-store me-1 opacity-50"></i> {{ note.shop_name }}
+                            </div>
+                            <div class="badge badge-soft-light rounded-pill px-3 py-1">
+                                <i class="fas fa-clock me-1 opacity-50"></i> {{ note.appointment_date }}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% if not note.is_read %}
+                    <div class="ms-auto pt-1">
+                        <span class="d-inline-block bg-primary rounded-circle" style="width: 8px; height: 8px;"></span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="glass-card p-5 text-center rounded-5 border-dashed border-2 border-opacity-10">
+            <div class="bg-surface-color p-4 rounded-circle d-inline-flex mx-auto mb-4 animate-float">
+                <i class="fas fa-bell-slash fa-4x text-muted opacity-50"></i>
+            </div>
+            <h2 class="text-white fw-bold mb-3">Your inbox is empty</h2>
+            <p class="text-muted mb-0">We'll notify you here when there's an update on your appointments.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .notification-container .glass-card:hover {
+        transform: translateX(5px);
+        background: rgba(255, 255, 255, 0.05);
+    }
+</style>
+{% endblock %}

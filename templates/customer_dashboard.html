@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block title %}My Dashboard{% endblock %}
+
+{% block content %}
+<div class="row align-items-center mb-5 fade-in">
+    <div class="col-md-6">
+        <h1 class="fw-bold text-white mb-1">My Bookings</h1>
+        <p class="text-muted mb-0">Manage your upcoming and past appointments</p>
+    </div>
+    <div class="col-md-6 text-md-end mt-3 mt-md-0">
+        <a href="{{ url_for('list_shops') }}" class="btn btn-primary rounded-pill px-4 shadow-lg">
+            <i class="fas fa-plus me-2 small"></i> New Appointment
+        </a>
+    </div>
+</div>
+
+<div class="row fade-in delay-1">
+    <div class="col-md-12">
+        {% if appointments %}
+        <div class="appointment-container d-flex flex-column gap-4">
+            {% for appt in appointments %}
+            <div class="glass-card p-0 overflow-hidden fade-in shadow-xl mb-2" style="border-radius: 24px;">
+                <div class="row g-0">
+                    <!-- Status Indicator Bar -->
+                    <div class="col-auto bg-{{ 'success' if appt.status == 'confirmed' else 'secondary-subtle' }}"
+                        style="width: 6px;"></div>
+
+                    <div class="col p-4">
+                        <div class="row align-items-center">
+                            <div class="col-md-7">
+                                <div class="d-flex align-items-center mb-3">
+                                    <span class="badge badge-soft-primary rounded-pill me-3 px-3 py-2">
+                                        <i class="fas fa-scissors me-2"></i> {{ appt.services_list|truncate(40) }}
+                                    </span>
+                                    <span
+                                        class="badge badge-soft-{{ 'success' if appt.status == 'confirmed' else 'secondary' }} rounded-pill px-3 py-2">
+                                        {{ appt.status|title }}
+                                    </span>
+                                </div>
+                                <h3 class="text-white fw-bold mb-2">{{ appt.shop_name }}</h3>
+                                <div class="d-flex flex-wrap gap-4 text-muted small">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-calendar-alt me-2 text-primary"></i>
+                                        {{ appt.appointment_date }}
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-clock me-2 text-secondary"></i>
+                                        {{ appt.appointment_time }}
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-hourglass-half me-2 text-info"></i>
+                                        {{ appt.total_duration }} mins
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-map-marker-alt me-2 text-accent"></i>
+                                        {{ appt.area }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div
+                                class="col-md-5 text-md-end mt-4 mt-md-0 border-start border-white border-opacity-10 ps-md-5">
+                                <div class="mb-3">
+                                    <span class="text-muted small d-block mb-1">Payment Status</span>
+                                    {% if appt.payment_status == 'paid' %}
+                                    <span class="badge badge-soft-success rounded-pill px-3 py-2">
+                                        <i class="fas fa-check-circle me-1"></i> Fully Paid
+                                    </span>
+                                    {% elif appt.payment_status == 'partially_paid' %}
+                                    <span class="badge badge-soft-warning rounded-pill px-3 py-2 text-warning">
+                                        <i class="fas fa-adjust me-1"></i> Partial (50%)
+                                    </span>
+                                    {% else %}
+                                    <span class="badge badge-soft-danger rounded-pill px-3 py-2">
+                                        <i class="fas fa-exclamation-circle me-1"></i> Unpaid
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <div class="d-flex flex-wrap justify-content-md-end gap-2">
+                                    {% if appt.status == 'confirmed' and appt.payment_status == 'paid' %}
+                                    <a href="{{ url_for('shop_details', shop_id=appt.shop_id) }}#reviews"
+                                        class="btn btn-outline-light btn-sm rounded-pill px-3 card-hover-effect">
+                                        <i class="fas fa-star me-1 text-warning"></i> Review
+                                    </a>
+                                    {% endif %}
+
+                                    {% if appt.status == 'completed' and appt.payment_status == 'partially_paid' %}
+                                    <a href="{{ url_for('pay_remaining', appointment_id=appt.id) }}"
+                                        class="btn btn-success btn-sm rounded-pill px-3 shadow-sm">
+                                        <i class="fas fa-wallet me-1"></i> Pay Balance
+                                    </a>
+                                    {% endif %}
+
+                                    {% if appt.status in ['pending', 'confirmed'] %}
+                                    <form action="{{ url_for('cancel_appointment', appointment_id=appt.id) }}"
+                                        method="POST" class="d-inline"
+                                        onsubmit="return confirm('Are you sure you want to cancel this booking?');">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3">
+                                            <i class="fas fa-times me-1"></i> Cancel
+                                        </button>
+                                    </form>
+                                    {% endif %}
+
+                                    <a href="{{ url_for('shop_details', shop_id=appt.shop_id) }}"
+                                        class="btn btn-outline-primary btn-sm rounded-pill px-3">
+                                        Details
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div
+            class="glass-card p-5 text-center rounded-5 border-dashed border-2 border-opacity-10 vh-50 d-flex flex-column justify-content-center">
+            <div class="bg-surface-color p-4 rounded-circle d-inline-flex mx-auto mb-4 animate-float">
+                <i class="fas fa-calendar-times fa-4x text-muted opacity-50"></i>
+            </div>
+            <h2 class="text-white fw-bold mb-3">No Appointments Found</h2>
+            <p class="text-muted mb-5 fs-5 mx-auto col-md-6">Your schedule is looking clear! Why not treat yourself to a
+                fresh new look from one of our top-rated partners?</p>
+            <a href="{{ url_for('list_shops') }}" class="btn btn-primary btn-lg rounded-pill px-5 py-3 shadow-xl">
+                Discover Local Salons <i class="fas fa-search ms-2"></i>
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

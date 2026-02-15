@@ -1,0 +1,229 @@
+{% extends 'base.html' %}
+
+{% block title %}Payment{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center fade-in">
+    <div class="col-md-8 col-lg-6">
+        <div class="glass-card p-4 p-md-5">
+            <div class="text-center mb-4">
+                <i class="fas fa-{{ 'file-invoice-dollar' if is_final else 'shield-alt' }} fa-3x mb-3"
+                    style="color: var(--secondary-color);"></i>
+                <h2 class="fw-bold">{{ 'Final Balance Payment' if is_final else 'Initial Payment' }}</h2>
+                <p class="text-muted small">
+                    {% if is_final %}
+                    Complete your booking by paying the remaining 50%.
+                    {% else %}
+                    Choose how you'd like to pay for your appointment.
+                    {% endif %}
+                </p>
+            </div>
+
+            {% if not is_final %}
+            <!-- Payment Plan Selection -->
+            <div class="row g-3 mb-4" id="planSelection">
+                <div class="col-6">
+                    <div class="glass-card p-3 border-primary border-opacity-25 plan-card active" data-plan="half"
+                        data-amount="{{ total_amount / 2 }}">
+                        <div class="text-center">
+                            <i class="fas fa-pie-chart d-block mb-2 text-primary"></i>
+                            <span class="fw-bold d-block small">Pay 50%</span>
+                            <span class="text-muted x-small">₹{{ "%.2f"|format(total_amount / 2) }} Now</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="glass-card p-3 plan-card" data-plan="full" data-amount="{{ total_amount }}">
+                        <div class="text-center">
+                            <i class="fas fa-check-double d-block mb-2 text-success"></i>
+                            <span class="fw-bold d-block small">Pay 100%</span>
+                            <span class="text-muted x-small">₹{{ "%.2f"|format(total_amount) }} Now</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="text-center mb-4">
+                <div class="badge bg-primary fs-5 px-4 py-2 rounded-pill shadow-xl">
+                    Payable: ₹<span id="displayAmount">{{ "%.2f"|format(total_amount / 2) if not is_final else
+                        "%.2f"|format(total_amount) }}</span>
+                </div>
+            </div>
+
+            <hr class="my-4 border-secondary opacity-25">
+
+            <!-- Payment Method Tabs -->
+            <ul class="nav nav-pills mb-4 justify-content-center" id="paymentTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active rounded-pill px-4 me-2" id="card-tab" data-bs-toggle="pill"
+                        data-bs-target="#card-payment" type="button" role="tab">
+                        <i class="fas fa-credit-card me-2"></i>Card
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link rounded-pill px-4" id="upi-tab" data-bs-toggle="pill"
+                        data-bs-target="#upi-payment" type="button" role="tab">
+                        <i class="fas fa-mobile-alt me-2"></i>UPI
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="paymentTabsContent">
+                <!-- Card Payment Section -->
+                <div class="tab-pane fade show active" id="card-payment" role="tabpanel">
+                    <form
+                        action="{{ url_for('payment', appointment_id=appointment_id, amount=total_amount) }}?is_final={{ '1' if is_final else '0' }}"
+                        method="post">
+                        {% if not is_final %}
+                        <input type="hidden" name="payment_plan" id="cardPlanInput" value="half">
+                        <input type="hidden" name="amount" id="cardAmountInput" value="{{ total_amount / 2 }}">
+                        {% else %}
+                        <input type="hidden" name="amount" value="{{ total_amount }}">
+                        {% endif %}
+                        <input type="hidden" name="payment_method" value="Credit/Debit Card">
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">Card Number</label>
+                            <input type="text" class="form-control" name="card_number" placeholder="4242 4242 4242 4242"
+                                required>
+                        </div>
+                        <div class="row g-3 mb-4">
+                            <div class="col-6">
+                                <label class="form-label text-muted small">Expiry (MM/YY)</label>
+                                <input type="text" class="form-control" name="expiry" placeholder="12/26" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label text-muted small">CVV</label>
+                                <input type="password" class="form-control" name="cvv" placeholder="***" maxlength="3"
+                                    required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-lg w-100 rounded-pill py-3 shadow-lg">
+                            Confirm Secure Payment
+                        </button>
+                    </form>
+                </div>
+
+                <!-- UPI Payment Section -->
+                <div class="tab-pane fade" id="upi-payment" role="tabpanel">
+                    <form
+                        action="{{ url_for('payment', appointment_id=appointment_id, amount=total_amount) }}?is_final={{ '1' if is_final else '0' }}"
+                        method="post">
+                        {% if not is_final %}
+                        <input type="hidden" name="payment_plan" id="upiPlanInput" value="half">
+                        <input type="hidden" name="amount" id="upiAmountInput" value="{{ total_amount / 2 }}">
+                        {% else %}
+                        <input type="hidden" name="amount" value="{{ total_amount }}">
+                        {% endif %}
+                        <input type="hidden" name="payment_method" value="UPI">
+                        <div class="mb-4 text-center">
+                            <p class="text-muted small">Enter your UPI ID to receive a payment request</p>
+                            <div class="input-group mb-3">
+                                <span class="input-group-text bg-transparent border-end-0"><i
+                                        class="fas fa-at text-muted"></i></span>
+                                <input type="text" class="form-control border-start-0" name="upi_id"
+                                    placeholder="username@upi" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success btn-lg w-100 rounded-pill py-3">
+                            Confirm UPI Payment
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="text-center mt-4">
+                <p class="text-muted x-small"><i class="fas fa-lock me-1"></i> Your payment information is encrypted and
+                    secure.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const planCards = document.querySelectorAll('.plan-card');
+        const displayAmount = document.getElementById('displayAmount');
+
+        // Inputs for Card form
+        const cardPlan = document.getElementById('cardPlanInput');
+        const cardAmount = document.getElementById('cardAmountInput');
+
+        // Inputs for UPI form
+        const upiPlan = document.getElementById('upiPlanInput');
+        const upiAmount = document.getElementById('upiAmountInput');
+
+        planCards.forEach(card => {
+            card.addEventListener('click', () => {
+                // UI Toggle
+                planCards.forEach(c => {
+                    c.classList.remove('active');
+                    c.classList.remove('border-primary');
+                    c.classList.remove('border-opacity-25');
+                });
+                card.classList.add('active');
+                card.classList.add('border-primary');
+                card.classList.add('border-opacity-25');
+
+                // Data Update
+                const plan = card.getAttribute('data-plan');
+                const amt = card.getAttribute('data-amount');
+
+                displayAmount.textContent = parseFloat(amt).toFixed(2);
+
+                if (cardPlan) cardPlan.value = plan;
+                if (cardAmount) cardAmount.value = amt;
+                if (upiPlan) upiPlan.value = plan;
+                if (upiAmount) upiAmount.value = amt;
+            });
+        });
+    });
+</script>
+
+<style>
+    .plan-card {
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 2px solid transparent !important;
+    }
+
+    .plan-card:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateY(-5px);
+    }
+
+    .plan-card.active {
+        background: rgba(139, 92, 246, 0.1);
+        border-color: var(--primary-color) !important;
+    }
+
+    .nav-pills .nav-link {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-muted);
+        border: 1px solid var(--glass-border);
+        transition: all 0.3s ease;
+    }
+
+    .nav-pills .nav-link.active {
+        background: var(--primary-color) !important;
+        box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+    }
+
+    .form-control {
+        background: rgba(0, 0, 0, 0.2);
+        border-color: var(--glass-border);
+        color: white;
+    }
+
+    .form-control:focus {
+        background: rgba(0, 0, 0, 0.3);
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.25rem rgba(139, 92, 246, 0.1);
+        color: white;
+    }
+
+    .input-group-text {
+        border-color: var(--glass-border);
+    }
+</style>
+{% endblock %}

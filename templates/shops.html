@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block title %}Find a Shop{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h2>Find Salons Near You</h2>
+    </div>
+    <div class="col-md-4">
+        <form action="{{ url_for('list_shops') }}" method="get" class="d-flex">
+            <input class="form-control me-2" type="search" name="area" placeholder="Filter by Area in City"
+                aria-label="Search">
+            <button class="btn btn-primary rounded-pill px-4" type="submit">
+                <i class="fas fa-search me-2"></i> Search
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="row">
+    {% for shop in shops %}
+    <div class="col-md-4 mb-4">
+        <div class="glass-card h-100 p-0 overflow-hidden fade-in">
+            {% if shop.shop_image %}
+            <img src="{{ url_for('static', filename='uploads/shop_pics/' + shop.shop_image) }}" class="card-img-top"
+                alt="{{ shop.name }}" style="height: 180px; object-fit: cover;">
+            {% else %}
+            <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center"
+                style="height: 180px;">
+                <i class="fas fa-store fa-3x text-light opacity-50"></i>
+            </div>
+            {% endif %}
+            <div class="card-body p-4">
+                <h5 class="fw-bold text-white mb-2">{{ shop.name }}</h5>
+                <h6 class="text-muted mb-3"><i class="fas fa-map-marker-alt me-1"></i> {{ shop.area }}</h6>
+                <p class="text-light text-truncate mb-4">{{ shop.description }}</p>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="badge bg-primary px-3 rounded-pill"><i class="fas fa-star me-1"></i> {{ shop.rating
+                        }}</span>
+                    <a href="{{ url_for('shop_details', shop_id=shop.id) }}"
+                        class="btn btn-primary btn-sm rounded-pill px-3">View Details</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+        <div class="alert alert-warning text-center">
+            No shops found. Try a different area or check back later!
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

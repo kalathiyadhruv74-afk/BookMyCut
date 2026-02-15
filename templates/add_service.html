@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block title %}Add Service{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center fade-in">
+    <div class="col-md-8 col-lg-7">
+        <div class="glass-card p-4 p-md-5 scale-in">
+            <div class="text-center mb-4">
+                <i class="fas fa-plus-circle fa-3x mb-3" style="color: var(--secondary-color);"></i>
+                <h2 class="fw-bold text-white">Add New Service</h2>
+                <p class="text-muted">Define the offerings for your shop</p>
+            </div>
+
+            <form action="{{ url_for('add_service') }}" method="post">
+                <div class="mb-3">
+                    <label for="name" class="form-label text-muted small">Service Name</label>
+                    <input type="text" class="form-control bg-dark border-secondary border-opacity-25 text-white"
+                        id="name" name="name" placeholder="e.g. Classic Haircut & Style" maxlength="100" required>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label for="price" class="form-label text-muted small">Price (₹)</label>
+                        <input type="number" step="0.01" min="1"
+                            class="form-control bg-dark border-secondary border-opacity-25 text-white" id="price"
+                            name="price" placeholder="25.00" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="duration" class="form-label text-muted small">Duration (Minutes)</label>
+                        <input type="number" min="1"
+                            class="form-control bg-dark border-secondary border-opacity-25 text-white" id="duration"
+                            name="duration" placeholder="e.g. 30" required>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label for="description" class="form-label text-muted small">Description</label>
+                    <textarea class="form-control bg-dark border-secondary border-opacity-25 text-white"
+                        id="description" name="description" rows="3" maxlength="500"
+                        placeholder="A brief description of this service..."></textarea>
+                </div>
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg rounded-pill py-3">Add Service</button>
+                    <a href="{{ url_for('owner_dashboard') }}"
+                        class="btn btn-link text-muted text-decoration-none">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

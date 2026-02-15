@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+
+{% block title %}Book Appointment{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center fade-in">
+    <div class="col-md-10 col-lg-8">
+        <div class="glass-card p-4 p-md-5">
+            <div class="text-center mb-4">
+                <i class="fas fa-calendar-check fa-3x mb-3" style="color: var(--primary-color);"></i>
+                <h2 class="fw-bold text-white">Book Appointment</h2>
+                <div class="badge bg-secondary-subtle text-secondary fs-6 mt-2 px-3 rounded-pill">
+                    {{ shop.name }}
+                </div>
+            </div>
+
+            <div class="row g-4 mb-5">
+                <div class="col-md-7">
+                    <h5 class="text-white mb-4 d-flex align-items-center">
+                        <span class="badge badge-soft-primary me-2"><i class="fas fa-list-ul"></i></span>
+                        Selected Services
+                    </h5>
+                    <div class="d-flex flex-column gap-3 mb-4">
+                        {% for service in services %}
+                        <div class="glass-card p-3 d-flex justify-content-between align-items-center card-hover-effect"
+                            style="border-radius: 15px;">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-primary bg-opacity-10 p-2 rounded-3 me-3">
+                                    <i class="fas fa-check text-primary small"></i>
+                                </div>
+                                <div>
+                                    <span class="text-white fw-bold d-block">{{ service.name }}</span>
+                                    <span class="badge badge-soft-secondary rounded-pill x-small mt-1"
+                                        style="font-size: 0.7rem;">
+                                        <i class="fas fa-clock me-1"></i> {{ service.duration_minutes }} mins
+                                    </span>
+                                </div>
+                            </div>
+                            <span class="text-primary fw-bold h5 mb-0">₹{{ service.price }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="col-md-5">
+                    <div class="glass-card p-4 h-100 border-primary border-opacity-20 d-flex flex-column justify-content-center text-center shadow-xl"
+                        style="background: var(--card-hover-bg);">
+                        <div class="mb-4">
+                            <span
+                                class="badge-soft-secondary rounded-pill px-3 py-1 small mb-2 d-inline-block">Duration</span>
+                            <h2 class="text-white fw-bold mb-0">
+                                {% set total_duration = services|sum(attribute='duration_minutes') %}
+                                {{ total_duration }} <small class="fs-6 opacity-50">mins</small>
+                            </h2>
+                        </div>
+                        <div class="mx-auto bg-decorative" style="height: 1px; width: 60%;"></div>
+                        <div class="mt-4">
+                            <span class="badge-soft-primary rounded-pill px-3 py-1 small mb-2 d-inline-block">Total
+                                Due</span>
+                            <h1 class="text-primary fw-bold mb-0" style="text-shadow: 0 0 20px var(--primary-glow);">
+                                ₹{% set total_price = services|sum(attribute='price') %}{{ total_price }}
+                            </h1>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <form action="{{ url_for('process_booking') }}" method="post" id="bookingForm">
+                <input type="hidden" name="shop_id" value="{{ shop.id }}">
+                {% for service in services %}
+                <input type="hidden" name="service_ids" value="{{ service.id }}">
+                {% endfor %}
+                <input type="hidden" name="time" id="selectedTime" required>
+
+                <div class="mb-5">
+                    <label for="date" class="form-label text-white fw-bold d-flex align-items-center mb-3">
+                        <span
+                            class="bg-decorative rounded-circle d-inline-flex align-items-center justify-content-center me-2 text-primary"
+                            style="width: 28px; height: 28px; background-color: var(--primary-glow) !important; opacity: 1;">1</span>
+                        Pick Appointment Date
+                    </label>
+                    <div class="input-group input-group-lg shadow-sm">
+                        <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
+                        <input type="date" class="form-control" id="date" name="date" value="{{ selected_date }}"
+                            required min="{{ now }}">
+                    </div>
+                </div>
+
+                <div class="mb-5">
+                    <label class="form-label text-white fw-bold d-flex align-items-center mb-3">
+                        <span
+                            class="bg-decorative rounded-circle d-inline-flex align-items-center justify-content-center me-2 text-primary"
+                            style="width: 28px; height: 28px; background-color: var(--primary-glow) !important; opacity: 1;">2</span>
+                        Pick Selection Time Slot
+                    </label>
+                    <div class="slot-grid shadow-inner">
+                        {% for slot in slots %}
+                        <button type="button"
+                            class="btn slot-btn {{ 'active' if False }} {{ 'disabled' if not slot.is_available }}"
+                            data-time="{{ slot.time }}" data-available="{{ 'true' if slot.is_available else 'false' }}"
+                            {{ 'disabled' if not slot.is_available }}>
+                            {{ slot.time }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                    <div class="mt-3 p-3 glass-card bg-opacity-10 border-opacity-10 d-flex align-items-center"
+                        style="border-radius: 12px;">
+                        <i class="fas fa-info-circle text-info me-3 fa-lg"></i>
+                        <small class="text-muted">
+                            Services totaling <span class="text-white fw-bold">{{ total_duration }} mins</span> will
+                            reserve the necessary consecutive slots automatically.
+                        </small>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-3 mt-5 pt-3">
+                    <button type="submit" id="submitBtn"
+                        class="btn btn-primary btn-lg rounded-pill py-3 fw-bold shadow-xl fs-5" disabled>
+                        Confirm Appointment <i class="fas fa-chevron-right ms-2 small"></i>
+                    </button>
+                    <a href="{{ url_for('shop_details', shop_id=shop.id) }}"
+                        class="btn btn-outline-light rounded-pill py-2 border-opacity-10 text-muted">
+                        <i class="fas fa-arrow-left me-2"></i> Choose Different Services
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const slotBtns = document.querySelectorAll('.slot-btn');
+        const selectedTimeInput = document.getElementById('selectedTime');
+        const submitBtn = document.getElementById('submitBtn');
+        const dateInput = document.getElementById('date');
+        const totalDuration = {{ services | sum(attribute = 'duration_minutes')
+    }};
+
+    // Refresh page when date changes to fetch new availability
+    dateInput.addEventListener('change', function () {
+        const url = new URL(window.location.href);
+        url.searchParams.set('date', this.value);
+        window.location.href = url.toString();
+    });
+
+    slotBtns.forEach((btn, index) => {
+        btn.addEventListener('click', function () {
+            // Check if subsequent slots are also available for the required duration
+            const slotsNeeded = Math.ceil(totalDuration / 30);
+            let isPossible = true;
+
+            for (let i = 0; i < slotsNeeded; i++) {
+                const targetBtn = slotBtns[index + i];
+                if (!targetBtn || targetBtn.dataset.available === 'false') {
+                    isPossible = false;
+                    break;
+                }
+            }
+
+            if (!isPossible) {
+                alert(`This slot doesn't have enough consecutive free time for your services (${totalDuration} mins). Please pick an earlier slot or a different time.`);
+                return;
+            }
+
+            slotBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            selectedTimeInput.value = this.dataset.time;
+            submitBtn.disabled = false;
+        });
+    });
+});
+</script>
+{% endblock %}

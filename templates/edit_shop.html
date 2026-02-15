@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Shop - {{ shop.name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center fade-in">
+    <div class="col-md-8 col-lg-7">
+        <div class="glass-card p-4 p-md-5">
+            <div class="text-center mb-4">
+                <i class="fas fa-edit fa-3x mb-3" style="color: var(--primary-color);"></i>
+                <h2 class="fw-bold text-white">Edit Shop Profile</h2>
+                <p class="text-muted">Keep your business information up-to-date</p>
+            </div>
+
+            <form action="{{ url_for('edit_shop') }}" method="post" enctype="multipart/form-data">
+                <div class="mb-4 text-center">
+                    <label class="form-label text-muted small d-block mb-3">Current Salon Picture</label>
+                    {% if shop.shop_image %}
+                    <img src="{{ url_for('static', filename='uploads/shop_pics/' + shop.shop_image) }}"
+                        alt="Current Salon" class="rounded-3 shadow-lg mb-3"
+                        style="max-width: 100%; height: 200px; object-fit: cover;">
+                    {% else %}
+                    <div class="bg-dark rounded-3 d-flex align-items-center justify-content-center mx-auto mb-3"
+                        style="width: 100%; height: 200px; border: 1px dashed var(--glass-border);">
+                        <i class="fas fa-image fa-3x text-muted opacity-50"></i>
+                    </div>
+                    {% endif %}
+                    <input class="form-control bg-dark border-secondary border-opacity-25 text-white" type="file"
+                        id="shop_image" name="shop_image" accept="image/*">
+                    <small class="text-muted mt-2 d-block">Upload a new photo to change the current one</small>
+                </div>
+
+                <div class="mb-3">
+                    <label for="name" class="form-label text-muted small">Shop Name</label>
+                    <input type="text" class="form-control bg-dark border-secondary border-opacity-25 text-white"
+                        id="name" name="name" value="{{ shop.name }}" maxlength="100" required>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label for="area" class="form-label text-muted small">Area / City</label>
+                        <input type="text" class="form-control bg-dark border-secondary border-opacity-25 text-white"
+                            id="area" name="area" value="{{ shop.area }}" maxlength="100" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="contact" class="form-label text-muted small">Contact Number</label>
+                        <input type="text" class="form-control bg-dark border-secondary border-opacity-25 text-white"
+                            id="contact" name="contact" value="{{ shop.contact_number }}" maxlength="20" required>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="address" class="form-label text-muted small">Full Address</label>
+                    <textarea class="form-control bg-dark border-secondary border-opacity-25 text-white" id="address"
+                        name="address" rows="2" required>{{ shop.address }}</textarea>
+                </div>
+                <div class="mb-4">
+                    <label for="description" class="form-label text-muted small">Description</label>
+                    <textarea class="form-control bg-dark border-secondary border-opacity-25 text-white"
+                        id="description" name="description" rows="3" maxlength="500">{{ shop.description }}</textarea>
+                </div>
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg rounded-pill py-3">Update Shop Profile</button>
+                    <a href="{{ url_for('owner_dashboard') }}"
+                        class="btn btn-link text-muted text-decoration-none">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

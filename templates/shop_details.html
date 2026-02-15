@@ -1,0 +1,230 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ shop.name }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('list_shops') }}"><i class="fas fa-store me-1"></i> Shops</a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">{{ shop.name }}</li>
+    </ol>
+</nav>
+
+{% if shop.shop_image %}
+<div class="row mb-4 fade-in">
+    <div class="col-12">
+        <div class="glass-card p-2 overflow-hidden" style="height: 350px;">
+            <img src="{{ url_for('static', filename='uploads/shop_pics/' + shop.shop_image) }}"
+                class="img-fluid rounded-3 w-100 h-100" style="object-fit: cover;" alt="{{ shop.name }}">
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row">
+    <!-- Shop Info -->
+    <div class="col-md-4 mb-4">
+        <div class="glass-card p-4 position-sticky fade-in" style="top: 20px;">
+            <div class="card-body p-0">
+                <h3 class="fw-bold text-white mb-3">{{ shop.name }}</h3>
+                <h6 class="text-muted mb-4"><i class="fas fa-map-marker-alt me-2"></i> {{ shop.area }}</h6>
+                <hr class="border-secondary opacity-25">
+                <div class="mb-3">
+                    <strong class="text-light d-block mb-1">Address:</strong>
+                    <p class="text-muted small mb-0">{{ shop.address }}</p>
+                </div>
+                <div class="mb-3">
+                    <strong class="text-light d-block mb-1">Contact:</strong>
+                    <p class="text-muted small mb-0">{{ shop.contact_number }}</p>
+                </div>
+                <div>
+                    <strong class="text-light d-block mb-1">About:</strong>
+                    <p class="text-muted small mb-0">{{ shop.description }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Services & Reviews -->
+    <div class="col-md-8">
+        <!-- Services -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="fw-bold text-white mb-0">Services Menu</h4>
+            <span class="badge badge-soft-secondary rounded-pill">
+                <i class="fas fa-scissors me-2"></i> {{ services|length }} Items
+            </span>
+        </div>
+
+        <form action="{{ url_for('book_confirm') }}" method="get" id="servicesForm">
+            <input type="hidden" name="shop_id" value="{{ shop.id }}">
+            <div class="d-flex flex-column gap-3 mb-5">
+                {% for service in services %}
+                <div class="glass-card p-4 d-flex justify-content-between align-items-center fade-in card-hover-effect"
+                    style="border-radius: 20px;">
+                    <div class="d-flex align-items-center flex-grow-1">
+                        {% if session.role != 'shop_owner' %}
+                        <div class="form-check custom-checkbox me-4">
+                            <input class="form-check-input service-checkbox" type="checkbox" name="service_ids"
+                                value="{{ service.id }}" data-price="{{ service.price }}"
+                                data-duration="{{ service.duration_minutes }}" id="service{{ service.id }}">
+                        </div>
+                        {% endif %}
+                        <label class="flex-grow-1 cursor-pointer" for="service{{ service.id }}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h5 class="fw-bold text-white mb-1">{{ service.name }}</h5>
+                                    <p class="text-muted small mb-2">{{ service.description or 'Exquisite grooming
+                                        service tailored for you.' }}</p>
+                                    <div class="d-flex gap-2">
+                                        <span class="badge badge-soft-primary rounded-pill small">
+                                            <i class="fas fa-hourglass-half me-1"></i> {{ service.duration_minutes }}
+                                            mins
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="text-end ms-3">
+                                    <h4 class="fw-bold text-primary mb-0">₹{{ service.price }}</h4>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                {% else %}
+                <div class="glass-card p-5 text-center text-muted rounded-4">
+                    <i class="fas fa-info-circle fa-2x mb-3 text-primary opacity-50"></i>
+                    <p class="mb-0">Our services are being updated. Check back soon!</p>
+                </div>
+                {% endfor %}
+            </div>
+
+            {% if session.role != 'shop_owner' and services %}
+            <div id="bookingSummary" class="glass-card p-3 position-sticky bottom-0 mx-auto fade-in shadow-xl mb-5"
+                style="z-index: 100; border-radius: 50px; background: rgba(15, 23, 42, 0.9); width: fit-content; min-width: 60%; transform: translateY(-20px); border: 1px solid rgba(139, 92, 246, 0.3); display: none;">
+                <div class="d-flex justify-content-between align-items-center px-3">
+                    <div class="d-flex align-items-center gap-4">
+                        <div class="text-start">
+                            <span class="text-muted small d-block mb-1">Items: <span id="selectedCount"
+                                    class="text-primary fw-bold">0</span></span>
+                            <div class="h5 mb-0 text-white">Total: <span class="text-primary fw-bold">₹<span
+                                        id="totalPrice">0</span></span></div>
+                        </div>
+                        <div class="vr bg-secondary opacity-25" style="height: 30px;"></div>
+                        <div class="text-start">
+                            <span class="text-muted small d-block mb-1">Time Range</span>
+                            <span class="text-white small fw-bold"><i class="fas fa-clock me-1 text-secondary"></i>
+                                <span id="totalDuration">0</span> mins</span>
+                        </div>
+                    </div>
+                    <button type="submit" id="bookBtn" class="btn btn-primary rounded-pill px-5 py-3 fw-bold shadow-lg"
+                        disabled>
+                        Book Appointment <i class="fas fa-calendar-check ms-2"></i>
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </form>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const checkboxes = document.querySelectorAll('.service-checkbox');
+                const totalPriceEl = document.getElementById('totalPrice');
+                const totalDurationEl = document.getElementById('totalDuration');
+                const selectedCountEl = document.getElementById('selectedCount');
+                const bookBtn = document.getElementById('bookBtn');
+                const summaryBar = document.getElementById('bookingSummary');
+
+                function updateTotal() {
+                    let total = 0;
+                    let duration = 0;
+                    let count = 0;
+                    checkboxes.forEach(cb => {
+                        if (cb.checked) {
+                            total += parseFloat(cb.dataset.price);
+                            duration += parseInt(cb.dataset.duration);
+                            count++;
+                        }
+                    });
+
+                    totalPriceEl.textContent = total.toFixed(2);
+                    totalDurationEl.textContent = duration;
+                    selectedCountEl.textContent = count;
+                    bookBtn.disabled = count === 0;
+
+                    // Show/Hide summary bar with animation
+                    if (count > 0) {
+                        summaryBar.style.display = 'block';
+                        setTimeout(() => {
+                            summaryBar.style.opacity = '1';
+                            summaryBar.style.transform = 'translateY(0)';
+                        }, 10);
+                    } else {
+                        summaryBar.style.opacity = '0';
+                        summaryBar.style.transform = 'translateY(20px)';
+                        setTimeout(() => {
+                            if (selectedCountEl.textContent === '0') {
+                                summaryBar.style.display = 'none';
+                            }
+                        }, 300);
+                    }
+                }
+
+                checkboxes.forEach(cb => {
+                    cb.addEventListener('change', updateTotal);
+                });
+
+                // Set initial transition
+                if (summaryBar) {
+                    summaryBar.style.transition = 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                }
+            });
+        </script>
+
+        <!-- Reviews -->
+        <h4 class="mb-3" id="reviews">Reviews</h4>
+
+        <!-- Add Review Form (Only for Customers) -->
+        {% if session.loggedin and session.role == 'customer' %}
+        <div class="glass-card p-4 mb-4 fade-in">
+            <h5 class="fw-bold text-white mb-4">Write a Review</h5>
+            <form action="{{ url_for('add_review') }}" method="post">
+                <input type="hidden" name="shop_id" value="{{ shop.id }}">
+                <div class="mb-3">
+                    <label class="form-label text-muted small">Rating</label>
+                    <select class="form-select bg-dark border-secondary border-opacity-25 text-white" name="rating">
+                        <option value="5">5 - Excellent</option>
+                        <option value="4">4 - Very Good</option>
+                        <option value="3">3 - Good</option>
+                        <option value="2">2 - Fair</option>
+                        <option value="1">1 - Poor</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted small">Your Feedback</label>
+                    <textarea class="form-control bg-dark border-secondary border-opacity-25 text-white" name="comment"
+                        rows="3" placeholder="Share your experience..." maxlength="500" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary rounded-pill px-4">Submit Review</button>
+            </form>
+        </div>
+        {% endif %}
+
+        {% for review in reviews %}
+        <div class="glass-card p-4 mb-3 fade-in">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="text-warning">
+                    {% for i in range(review.rating) %}
+                    <i class="fas fa-star"></i>
+                    {% endfor %}
+                </div>
+                <small class="text-muted">{{ review.created_at }}</small>
+            </div>
+            <h6 class="fw-bold text-light mb-2">{{ review.user_name }}</h6>
+            <p class="text-muted mb-0">"{{ review.comment }}"</p>
+        </div>
+        {% else %}
+        <p class="text-muted text-center py-4">No reviews yet. Be the first!</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
