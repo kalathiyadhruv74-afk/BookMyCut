@@ -5,11 +5,6 @@ def init_db():
     db_path = 'database.db'
     schema_path = 'database_sqlite.sql'
     
-    # Remove existing database if any (for a clean start)
-    if os.path.exists(db_path):
-        os.remove(db_path)
-        print(f"Removed existing {db_path}")
-
     # Connect to SQLite database
     conn = sqlite3.connect(db_path)
     print(f"Connected to {db_path}")
