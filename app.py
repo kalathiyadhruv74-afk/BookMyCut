@@ -665,6 +665,10 @@ def book_confirm():
                    (shop_id, selected_date))
     existing_appointments = cursor.fetchall()
     
+    current_now = get_now()
+    current_date = current_now.date()
+    current_tz = current_now.tzinfo
+    
     # Convert existing appointments to time ranges
     booked_ranges = []
     for appt in existing_appointments:
@@ -676,21 +680,16 @@ def book_confirm():
             except ValueError:
                 time_obj = datetime.strptime(appt_time, "%H:%M").time()
             
-            # Use get_now().date() to ensure "today" is IST
-            current_date_ist = get_now().date()
-            start_time = datetime.combine(current_date_ist, time_obj)
+            # Use current_date to ensure "today" is IST
+            start_time = datetime.combine(current_date, time_obj).replace(tzinfo=current_tz)
         else:
             # Fallback for timedelta
-            start_time = datetime.combine(get_now().date(), (datetime.min + appt_time).time())
+            start_time = datetime.combine(current_date, (datetime.min + appt_time).time()).replace(tzinfo=current_tz)
             
         end_time = start_time + timedelta(minutes=int(appt['total_duration']))
         booked_ranges.append((start_time, end_time))
 
-    now_dt = get_now()
-    # Remove timezone info for comparison with datetime.combine(datetime.today(), ...)
-    # which uses local platform time without tz info usually, or we should be careful.
-    # Actually, slot_time_dt is combine(today, slot_time)
-    today_str = now_dt.strftime('%Y-%m-%d')
+    today_str = current_now.strftime('%Y-%m-%d')
     is_today = selected_date == today_str
 
     for hour in range(start_hour, end_hour):
@@ -698,8 +697,8 @@ def book_confirm():
             slot_time_str = f"{hour:02d}:{minute:02d}"
             # Time objects for comparison
             slot_time = datetime.strptime(slot_time_str, "%H:%M").time()
-            # Combine with IST today's date
-            slot_time_dt = datetime.combine(get_now().date(), slot_time)
+            # Combine with IST today's date and add TZ info
+            slot_time_dt = datetime.combine(current_date, slot_time).replace(tzinfo=current_tz)
             
             is_booked = False
             for b_start, b_end in booked_ranges:
@@ -709,16 +708,14 @@ def book_confirm():
                     break
             
             # Disable slot if it's already passed today
-            # Use datetime-based comparison for robustness
-            current_time_ist = get_now()
-            is_past = is_today and slot_time_dt < current_time_ist
+            is_past = is_today and slot_time_dt < current_now
 
             slots_data.append({
                 'time': slot_time_str,
                 'is_available': not is_booked and not is_past
             })
     
-    return render_template('book.html', shop=shop, services=selected_services, slots=slots_data, selected_date=selected_date, now=get_now().strftime('%Y-%m-%d'))
+    return render_template('book.html', shop=shop, services=selected_services, slots=slots_data, selected_date=selected_date, now=current_now.strftime('%Y-%m-%d'))
 
 @app.route('/process_booking', methods=['POST'])
 def process_booking():
@@ -763,8 +760,10 @@ def process_booking():
     total_duration = booking_info['total_duration']
 
     # --- Double Check Availability ---
-    # Use IST today for combine to stay consistent with book_confirm logic
-    requested_start = datetime.combine(get_now().date(), datetime.strptime(time, "%H:%M").time())
+    current_date = current_now.date()
+    current_tz = current_now.tzinfo
+    
+    requested_start = datetime.combine(current_date, datetime.strptime(time, "%H:%M").time()).replace(tzinfo=current_tz)
     requested_end = requested_start + timedelta(minutes=int(total_duration))
     
     cursor.execute('SELECT appointment_time, total_duration FROM appointments WHERE shop_id = ? AND appointment_date = ? AND status != "cancelled"', 
@@ -778,9 +777,9 @@ def process_booking():
                 time_obj = datetime.strptime(appt['appointment_time'], "%H:%M:%S").time()
             except ValueError:
                 time_obj = datetime.strptime(appt['appointment_time'], "%H:%M").time()
-            e_start = datetime.combine(get_now().date(), time_obj)
+            e_start = datetime.combine(current_date, time_obj).replace(tzinfo=current_tz)
         else:
-            e_start = datetime.combine(get_now().date(), (datetime.min + appt['appointment_time']).time())
+            e_start = datetime.combine(current_date, (datetime.min + appt['appointment_time']).time()).replace(tzinfo=current_tz)
             
         e_end = e_start + timedelta(minutes=int(appt['total_duration']))
         
