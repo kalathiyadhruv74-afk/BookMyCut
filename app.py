@@ -709,7 +709,9 @@ def book_confirm():
                     break
             
             # Disable slot if it's already passed today
-            is_past = is_today and slot_time < now_dt.time()
+            # Use datetime-based comparison for robustness
+            current_time_ist = get_now()
+            is_past = is_today and slot_time_dt < current_time_ist
 
             slots_data.append({
                 'time': slot_time_str,
@@ -736,11 +738,20 @@ def process_booking():
         flash('No services selected!', 'danger')
         return redirect(url_for('shop_details', shop_id=shop_id))
 
-    # Validation: Ensure date is not in the past
-    booking_date = datetime.strptime(date, f'%Y-%m-%d').date()
-    if booking_date < get_now().date():
+    # Validation: Ensure date/time is not in the past
+    booking_date = datetime.strptime(date, '%Y-%m-%d').date()
+    current_now = get_now()
+    
+    if booking_date < current_now.date():
         flash('You cannot book an appointment in the past!', 'danger')
-        return redirect(url_for('book', shop_id=shop_id, service_ids=service_ids))
+        return redirect(url_for('book_confirm', shop_id=shop_id, service_ids=service_ids))
+    
+    if booking_date == current_now.date():
+        booking_time = datetime.strptime(time, "%H:%M").time()
+        booking_dt = datetime.combine(booking_date, booking_time).replace(tzinfo=current_now.tzinfo)
+        if booking_dt < current_now:
+            flash('This time slot has already passed!', 'danger')
+            return redirect(url_for('book_confirm', shop_id=shop_id, service_ids=service_ids))
 
     cursor = get_db_cursor()
     
