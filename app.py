@@ -6,7 +6,11 @@ import sqlite3
 import re
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+def get_now():
+    """Returns current time in IST (UTC+5:30)"""
+    return datetime.now(timezone(timedelta(hours=5, minutes=30)))
 
 class SQLite:
     def __init__(self, db_path):
@@ -153,7 +157,7 @@ def inject_shop_status():
 
 def create_notification(user_id, title, message, appointment_id=None):
     cursor = get_db_cursor()
-    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    now = get_now().strftime('%Y-%m-%d %H:%M:%S')
     cursor.execute('INSERT INTO notifications (user_id, appointment_id, title, message, created_at) VALUES (?, ?, ?, ?, ?)',
                    (user_id, appointment_id, title, message, now))
     db.connection.commit()
@@ -247,7 +251,7 @@ def register():
             msg = 'Password must be at least 8 characters long!'
         else:
             hashed_password = generate_password_hash(password)
-            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            now = get_now().strftime('%Y-%m-%d %H:%M:%S')
             cursor.execute('INSERT INTO users (name, email, password, role, phone_number, gender, area, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', 
                            (name, email, hashed_password, role, phone_number, gender, area, now))
             db.connection.commit()
@@ -382,7 +386,7 @@ def add_shop():
             if file and file.filename != '':
                 if allowed_file(file.filename):
                     filename = secure_filename(file.filename)
-                    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+                    timestamp = get_now().strftime('%Y%m%d%H%M%S')
                     filename = f"{timestamp}_{filename}"
                     try:
                         file.save(os.path.join(app.config['SHOP_UPLOAD_FOLDER'], filename))
@@ -446,7 +450,7 @@ def edit_shop():
                                 pass
                     
                     filename = secure_filename(file.filename)
-                    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+                    timestamp = get_now().strftime('%Y%m%d%H%M%S')
                     filename = f"{timestamp}_{filename}"
                     try:
                         file.save(os.path.join(app.config['SHOP_UPLOAD_FOLDER'], filename))
@@ -649,7 +653,7 @@ def book_confirm():
         flash('Selected services not found.', 'danger')
         return redirect(url_for('shop_details', shop_id=shop_id))
 
-    selected_date = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+    selected_date = request.args.get('date', get_now().strftime('%Y-%m-%d'))
     
     # Generate Slots (Helper Logic)
     slots_data = []
@@ -671,15 +675,21 @@ def book_confirm():
                 time_obj = datetime.strptime(appt_time, "%H:%M:%S").time()
             except ValueError:
                 time_obj = datetime.strptime(appt_time, "%H:%M").time()
-            start_time = datetime.combine(datetime.today(), time_obj)
+            
+            # Use get_now().date() to ensure "today" is IST
+            current_date_ist = get_now().date()
+            start_time = datetime.combine(current_date_ist, time_obj)
         else:
             # Fallback for timedelta
-            start_time = datetime.combine(datetime.today(), (datetime.min + appt_time).time())
+            start_time = datetime.combine(get_now().date(), (datetime.min + appt_time).time())
             
         end_time = start_time + timedelta(minutes=int(appt['total_duration']))
         booked_ranges.append((start_time, end_time))
 
-    now_dt = datetime.now()
+    now_dt = get_now()
+    # Remove timezone info for comparison with datetime.combine(datetime.today(), ...)
+    # which uses local platform time without tz info usually, or we should be careful.
+    # Actually, slot_time_dt is combine(today, slot_time)
     today_str = now_dt.strftime('%Y-%m-%d')
     is_today = selected_date == today_str
 
@@ -688,7 +698,8 @@ def book_confirm():
             slot_time_str = f"{hour:02d}:{minute:02d}"
             # Time objects for comparison
             slot_time = datetime.strptime(slot_time_str, "%H:%M").time()
-            slot_time_dt = datetime.combine(datetime.today(), slot_time)
+            # Combine with IST today's date
+            slot_time_dt = datetime.combine(get_now().date(), slot_time)
             
             is_booked = False
             for b_start, b_end in booked_ranges:
@@ -705,7 +716,7 @@ def book_confirm():
                 'is_available': not is_booked and not is_past
             })
     
-    return render_template('book.html', shop=shop, services=selected_services, slots=slots_data, selected_date=selected_date, now=datetime.now().strftime('%Y-%m-%d'))
+    return render_template('book.html', shop=shop, services=selected_services, slots=slots_data, selected_date=selected_date, now=get_now().strftime('%Y-%m-%d'))
 
 @app.route('/process_booking', methods=['POST'])
 def process_booking():
@@ -727,7 +738,7 @@ def process_booking():
 
     # Validation: Ensure date is not in the past
     booking_date = datetime.strptime(date, f'%Y-%m-%d').date()
-    if booking_date < datetime.now().date():
+    if booking_date < get_now().date():
         flash('You cannot book an appointment in the past!', 'danger')
         return redirect(url_for('book', shop_id=shop_id, service_ids=service_ids))
 
@@ -741,7 +752,8 @@ def process_booking():
     total_duration = booking_info['total_duration']
 
     # --- Double Check Availability ---
-    requested_start = datetime.combine(datetime.today(), datetime.strptime(time, "%H:%M").time())
+    # Use IST today for combine to stay consistent with book_confirm logic
+    requested_start = datetime.combine(get_now().date(), datetime.strptime(time, "%H:%M").time())
     requested_end = requested_start + timedelta(minutes=int(total_duration))
     
     cursor.execute('SELECT appointment_time, total_duration FROM appointments WHERE shop_id = ? AND appointment_date = ? AND status != "cancelled"', 
@@ -755,9 +767,9 @@ def process_booking():
                 time_obj = datetime.strptime(appt['appointment_time'], "%H:%M:%S").time()
             except ValueError:
                 time_obj = datetime.strptime(appt['appointment_time'], "%H:%M").time()
-            e_start = datetime.combine(datetime.today(), time_obj)
+            e_start = datetime.combine(get_now().date(), time_obj)
         else:
-            e_start = datetime.combine(datetime.today(), (datetime.min + appt['appointment_time']).time())
+            e_start = datetime.combine(get_now().date(), (datetime.min + appt['appointment_time']).time())
             
         e_end = e_start + timedelta(minutes=int(appt['total_duration']))
         
@@ -768,7 +780,7 @@ def process_booking():
     # --- End Check ---
 
     # Insert Appointment with total_price
-    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    now = get_now().strftime('%Y-%m-%d %H:%M:%S')
     cursor.execute('INSERT INTO appointments (user_id, shop_id, appointment_date, appointment_time, total_duration, total_price, status, payment_status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
                    (session['id'], shop_id, date, time, total_duration, amount, 'pending', 'unpaid', now))
     appointment_id = cursor.lastrowid
@@ -828,7 +840,7 @@ def payment(appointment_id, amount):
         # --- End Verification ---
         
         # Insert payment record
-        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        now = get_now().strftime('%Y-%m-%d %H:%M:%S')
         cursor.execute('INSERT INTO payments (appointment_id, amount, payment_method, status, transaction_date) VALUES (?, ?, ?, ?, ?)',
                        (appointment_id, actual_amount, payment_method, 'completed', now))
         
@@ -983,7 +995,7 @@ def add_review():
         flash('Comment must be less than 500 characters!', 'danger')
     else:
         cursor = get_db_cursor()
-        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        now = get_now().strftime('%Y-%m-%d %H:%M:%S')
         cursor.execute('INSERT INTO reviews (user_id, shop_id, rating, comment, created_at) VALUES (?, ?, ?, ?, ?)',
                        (session['id'], shop_id, rating, comment, now))
         db.connection.commit()
