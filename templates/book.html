@@ -213,55 +213,56 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const totalDuration = {{ total_duration }};
-    const slotBtns = document.querySelectorAll('.slot-btn');
-    const selectedTimeInput = document.getElementById('selectedTime');
-    const submitBtn = document.getElementById('submitBtn');
-    const dateInput = document.getElementById('datePicker');
+        const totalDuration = Number('{{ total_duration }}');
+        const slotBtns = document.querySelectorAll('.slot-btn');
+        const selectedTimeInput = document.getElementById('selectedTime');
+        const submitBtn = document.getElementById('submitBtn');
+        const dateInput = document.getElementById('datePicker');
 
-    // Initialize Flatpickr
-    flatpickr("#datePicker", {
-        dateFormat: "Y-m-d",
-        minDate: "today",
-        defaultDate: "{{ selected_date }}",
-        disableMobile: true,
-        onChange: function (selectedDates, dateStr, instance) {
+        // Initialize Flatpickr
+        flatpickr("#datePicker", {
+            dateFormat: "Y-m-d",
+            minDate: "today",
+            defaultDate: "{{ selected_date }}",
+            disableMobile: true,
+            onChange: function (selectedDates, dateStr, instance) {
+                const url = new URL(window.location.href);
+                url.searchParams.set('date', dateStr);
+                window.location.href = url.toString();
+            }
+        });
+
+        // Refresh page when date changes to fetch new availability
+        dateInput.addEventListener('change', function () {
             const url = new URL(window.location.href);
-            url.searchParams.set('date', dateStr);
+            url.searchParams.set('date', this.value);
             window.location.href = url.toString();
-        }
-    });
+        });
 
-    // Refresh page when date changes to fetch new availability
-    dateInput.addEventListener('change', function () {
-        const url = new URL(window.location.href);
-        url.searchParams.set('date', this.value);
-        window.location.href = url.toString();
-    });
+        slotBtns.forEach((btn, index) => {
+            btn.addEventListener('click', function () {
+                // Check if subsequent slots are also available for the required duration
+                const slotsNeeded = Math.ceil(totalDuration / 30);
+                let isPossible = true;
 
-    slotBtns.forEach((btn, index) => {
-        btn.addEventListener('click', function () {
-            // Check if subsequent slots are also available for the required duration
-            const slotsNeeded = Math.ceil(totalDuration / 30);
-            let isPossible = true;
-
-            for (let i = 0; i < slotsNeeded; i++) {
-                const targetBtn = slotBtns[index + i];
-                if (!targetBtn || targetBtn.dataset.available === 'false' || targetBtn.classList.contains('disabled')) {
-                    isPossible = false;
-                    break;
+                for (let i = 0; i < slotsNeeded; i++) {
+                    const targetBtn = slotBtns[index + i];
+                    if (!targetBtn || targetBtn.dataset.available === 'false' || targetBtn.classList.contains('disabled')) {
+                        isPossible = false;
+                        break;
+                    }
                 }
-            }
 
-            if (!isPossible) {
-                alert(`This slot doesn't have enough consecutive free time for your services (${totalDuration} mins). Please pick an earlier slot or a different time.`);
-                return;
-            }
+                if (!isPossible) {
+                    alert(`This slot doesn't have enough consecutive free time for your services (${totalDuration} mins). Please pick an earlier slot or a different time.`);
+                    return;
+                }
 
-            slotBtns.forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            selectedTimeInput.value = this.dataset.time;
-            submitBtn.disabled = false;
+                slotBtns.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                selectedTimeInput.value = this.dataset.time;
+                submitBtn.disabled = false;
+            });
         });
     });
 </script>
