@@ -5,7 +5,7 @@
 
 {% block content %}
 <!-- Hero Section -->
-<div class="position-relative overflow-hidden p-5 mb-5 rounded-5 fade-in"
+<div class="position-relative overflow-hidden p-4 p-md-5 mb-5 rounded-5 fade-in hero-section"
     style="background: transparent; border: 1px solid var(--hero-border-clr); box-shadow: var(--shadow-xl); min-height: 70vh; display: flex; align-items: center;">
 
     <div class="container-fluid py-5 text-center position-relative" style="z-index: 1;">
@@ -18,12 +18,12 @@
             Your Style, <span
                 style="background: linear-gradient(135deg, #a855f7, #06b6d4); -webkit-background-clip: text; background-clip: text;">Simplified.</span>
         </h1>
-        <p class="col-lg-7 mx-auto fs-4 mb-5 reveal delay-1"
+        <p class="col-lg-7 mx-auto fs-5 fs-md-4 mb-5 reveal delay-1"
             style="line-height: 1.6; color: var(--hero-text-clr); font-weight: 300;">
             BookMyCut is the elite platform for modern grooming excellence. Experience seamless booking for the finest
             barbers and salons.
         </p>
-        <div class="d-flex justify-content-center gap-3 reveal delay-2">
+        <div class="d-flex flex-column flex-sm-row justify-content-center gap-3 reveal delay-2">
             {% if session.loggedin %}
             {% if session.role == 'shop_owner' %}
             <a class="btn btn-primary btn-lg px-5 py-3 rounded-pill shadow-lg d-flex align-items-center"
@@ -181,8 +181,8 @@
 </div>
 
 <!-- Social Proof -->
-<div class="container py-5 mt-5">
-    <div class="glass-card p-5 text-center fade-in delay-4 rounded-5" style="border-radius: 40px !important;">
+<div class="container py-4 py-md-5 mt-5">
+    <div class="glass-card p-4 p-md-5 text-center fade-in delay-4 rounded-5" style="border-radius: 40px !important;">
         <div class="row g-5 justify-content-center">
             <div class="col-6 col-md-3 reveal reveal-scale delay-1">
                 <div class="bg-primary bg-opacity-10 p-3 rounded-circle d-inline-flex mb-3 shadow-inner">

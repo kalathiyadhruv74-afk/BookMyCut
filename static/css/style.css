@@ -914,3 +914,100 @@ footer {
     color: #f59e0b;
     /* Amber-500 for better contrast in light mode */
 }
+
+/* Main Content Wrapper */
+.content-wrapper {
+    padding-top: 100px;
+}
+
+@media (max-width: 767.98px) {
+    .content-wrapper {
+        padding-top: 80px;
+    }
+}
+
+/* --- Responsive Media Queries --- */
+
+
+/* Tablets and small desktops */
+@media (max-width: 991.98px) {
+    .aurora-blob {
+        width: 400px;
+        height: 400px;
+    }
+
+    .display-2 {
+        font-size: 3rem;
+    }
+
+    .display-4 {
+        font-size: 2.5rem;
+    }
+}
+
+/* Mobile Phones (Large) */
+@media (max-width: 767.98px) {
+    .aurora-blob {
+        width: 300px;
+        height: 300px;
+        filter: blur(80px);
+    }
+
+    .display-2 {
+        font-size: 2.5rem;
+    }
+
+    .display-4 {
+        font-size: 2rem;
+    }
+
+    .hero-section {
+        padding: 3rem 1rem !important;
+        min-height: auto !important;
+    }
+
+    .glass-card {
+        padding: 1.5rem !important;
+    }
+
+    .navbar-brand {
+        font-size: 1.25rem !important;
+    }
+
+    .container {
+        padding-left: 1.25rem;
+        padding-right: 1.25rem;
+    }
+}
+
+/* Small Phones */
+@media (max-width: 575.98px) {
+    .display-2 {
+        font-size: 2rem;
+    }
+
+    .display-4 {
+        font-size: 1.75rem;
+    }
+
+    .badge-soft-primary {
+        font-size: 0.75rem;
+        padding: 0.5rem 1rem !important;
+    }
+
+    .btn-lg {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+
+    .slot-grid {
+        grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+        gap: 8px;
+        padding: 10px;
+    }
+
+    .slot-btn {
+        font-size: 0.85rem !important;
+        padding: 10px 0 !important;
+    }
+}
