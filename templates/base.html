@@ -11,6 +11,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Flatpickr Date Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
 
     <!-- Theme Detection (Blocking) -->
     <script>
@@ -22,6 +25,16 @@
 </head>
 
 <body>
+    <!-- Aurora Background -->
+    <div class="aurora-background-container">
+        <div class="aurora-blob aurora-blob-1"></div>
+        <div class="aurora-blob aurora-blob-2"></div>
+        <div class="aurora-blob aurora-blob-3"></div>
+    </div>
+    <div class="dot-grid"></div>
+
+    <!-- Mouse Tracking Background -->
+    <div class="mouse-follower-bg"></div>
 
     <!-- Navigation -->
     {% if request.endpoint in ['login', 'register'] %}
@@ -116,6 +129,8 @@
             // Re-apply mouse follower if needed or other theme-specific JS
         });
     </script>
+    <!-- Flatpickr JS -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     {% block scripts %}{% endblock %}
 </body>
 

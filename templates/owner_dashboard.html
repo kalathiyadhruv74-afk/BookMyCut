@@ -69,19 +69,23 @@
                 {% if services %}
                 <div class="d-flex flex-column gap-3">
                     {% for service in services %}
-                    <div
-                        class="glass-card p-3 bg-white bg-opacity-5 border-0 rounded-3 d-flex justify-content-between align-items-center card-hover-effect">
+                    <div class="glass-card p-3 border-opacity-10 rounded-4 d-flex justify-content-between align-items-center card-hover-effect"
+                        style="background: var(--card-sub-bg);">
                         <div class="d-flex align-items-center">
-                            <div class="bg-primary bg-opacity-10 p-2 rounded-circle me-3">
-                                <i class="fas fa-scissors text-primary small"></i>
+                            <div class="bg-primary bg-opacity-10 p-2 rounded-circle me-3 d-flex align-items-center justify-content-center"
+                                style="width: 40px; height: 40px;">
+                                <i class="fas fa-scissors text-primary"></i>
                             </div>
                             <div>
-                                <span class="text-white fw-bold d-block">{{ service.name }}</span>
-                                <span class="text-muted x-small"><i class="fas fa-clock me-1"></i> {{
-                                    service.duration_minutes }} mins</span>
+                                <span class="text-white-adaptive fw-bold d-block fs-5 mb-1">{{ service.name }}</span>
+                                <span class="badge badge-soft-secondary rounded-pill px-3 py-1"
+                                    style="font-size: 0.8rem; border: 1px solid var(--secondary-glow);">
+                                    <i class="fas fa-clock me-1"></i> {{ service.duration_minutes }} mins
+                                </span>
                             </div>
                         </div>
-                        <span class="badge badge-soft-secondary rounded-pill fw-bold">₹{{ service.price }}</span>
+                        <span class="text-primary fw-bold fs-5" style="text-shadow: 0 0 10px var(--primary-glow);">₹{{
+                            service.price }}</span>
                     </div>
                     {% endfor %}
                 </div>
@@ -132,23 +136,27 @@
                                     </div>
                                 </td>
                                 <td class="py-4">
-                                    <div class="text-light small mb-2 fw-medium">{{ appt.services_list|truncate(30) }}
+                                    <div class="text-light fs-6 mb-2 fw-medium">{{ appt.services_list|truncate(40) }}
                                     </div>
                                     <div class="d-flex gap-2">
                                         <span
-                                            class="badge badge-soft-{{ 'success' if appt.status == 'confirmed' else ('info' if appt.status == 'completed' else ('danger' if appt.status == 'cancelled' else 'warning')) }} px-2 py-1">
+                                            class="badge badge-soft-{{ 'success' if appt.status == 'confirmed' else ('info' if appt.status == 'completed' else ('danger' if appt.status == 'cancelled' else 'warning')) }} px-2 py-1"
+                                            style="border: 1px solid var(--inner-border);">
                                             {{ appt.status|title }}
                                         </span>
                                         {% if appt.payment_status == 'paid' %}
-                                        <span class="badge badge-soft-success px-2 py-1">
+                                        <span class="badge badge-soft-success px-2 py-1"
+                                            style="border: 1px solid var(--inner-border);">
                                             <i class="fas fa-check-circle me-1"></i> Paid
                                         </span>
                                         {% elif appt.payment_status == 'partially_paid' %}
-                                        <span class="badge badge-soft-warning px-2 py-1">
+                                        <span class="badge badge-soft-warning px-2 py-1"
+                                            style="border: 1px solid var(--inner-border);">
                                             <i class="fas fa-adjust me-1"></i> Partial (50%)
                                         </span>
                                         {% else %}
-                                        <span class="badge badge-soft-danger px-2 py-1">
+                                        <span class="badge badge-soft-danger px-2 py-1"
+                                            style="border: 1px solid var(--inner-border);">
                                             <i class="fas fa-exclamation-circle me-1"></i> Unpaid
                                         </span>
                                         {% endif %}
@@ -190,38 +198,51 @@
 <div class="row mt-5 fade-in delay-3">
     <div class="col-12">
         <div class="glass-card p-4">
-            <h4 class="fw-bold text-white mb-4">Customer Love</h4>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold text-white mb-0">Customer Love</h4>
+                <div class="badge badge-soft-primary rounded-pill px-3">
+                    <i class="fas fa-star me-1 text-warning"></i> Recent Feedback
+                </div>
+            </div>
+
             {% if reviews %}
             <div class="row g-4">
                 {% for review in reviews %}
-                <div class="col-md-6 col-xl-4">
-                    <div
-                        class="glass-card p-4 bg-white bg-opacity-5 border-0 border-start border-primary border-4 rounded-3 h-100 card-hover-effect">
+                <div class="col-md-6 col-lg-4">
+                    <div class="review-card">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <div class="text-warning small d-flex gap-1">
-                                {% for i in range(review.rating) %}
-                                <i class="fas fa-star"></i>
+                            <div class="star-rating">
+                                {% for i in range(5) %}
+                                <i class="fas fa-star {% if i >= review.rating %}opacity-25{% endif %}"></i>
                                 {% endfor %}
                             </div>
-                            <span class="text-muted x-small">{{ review.created_at }}</span>
+                            <span class="text-muted x-small">{{ review.created_at|datetimeformat('%d %b') }}</span>
                         </div>
-                        <p class="text-light mb-3 italic">"{{ review.comment }}"</p>
-                        <div class="d-flex align-items-center mt-auto">
-                            <div class="bg-primary bg-opacity-20 rounded-circle w-30 h-30 d-flex align-items-center justify-content-center me-2"
-                                style="width: 28px; height: 28px;">
-                                <span class="text-primary x-small fw-bold">{{ review.user_name[0]|upper }}</span>
+
+                        <p class="quote-text mb-4">"{{ review.comment }}"</p>
+
+                        <div class="review-meta">
+                            <div class="review-avatar">
+                                {{ review.user_name[0]|upper }}
                             </div>
-                            <span class="text-muted small">{{ review.user_name }}</span>
+                            <div class="d-flex flex-column">
+                                <span class="text-white-adaptive fw-bold small">{{ review.user_name }}</span>
+                                <span class="text-muted x-small">Verified Customer</span>
+                            </div>
                         </div>
                     </div>
                 </div>
                 {% endfor %}
             </div>
-            {# TODO: Add a 'View All Reviews' if there are many #}
             {% else %}
-            <div class="glass-card p-5 text-center bg-white bg-opacity-5 border-0 rounded-4">
-                <i class="fas fa-comment-dots fa-3x text-muted opacity-25 mb-3"></i>
-                <p class="text-muted mb-0">No feedback yet. Great service will bring them in!</p>
+            <div
+                class="p-5 text-center bg-white bg-opacity-5 border border-white border-opacity-5 rounded-4 animate-float">
+                <div class="bg-primary bg-opacity-10 w-60 h-60 rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
+                    style="width: 60px; height: 60px;">
+                    <i class="fas fa-comment-dots text-primary opacity-50 fa-2x"></i>
+                </div>
+                <h5 class="text-white fw-bold mb-2">No Reviews Yet</h5>
+                <p class="text-muted mb-0">Great service will bring your first feedback soon!</p>
             </div>
             {% endif %}
         </div>

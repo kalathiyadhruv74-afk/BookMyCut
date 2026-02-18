@@ -43,8 +43,9 @@
                     </div>
                     <div class="col-md-6">
                         <label for="contact" class="form-label text-muted small">Contact Number</label>
-                        <input type="text" class="form-control bg-dark border-secondary border-opacity-25 text-white"
-                            id="contact" name="contact" value="{{ shop.contact_number }}" maxlength="20" required>
+                        <input type="tel" class="form-control bg-dark border-secondary border-opacity-25 text-white"
+                            id="contact" name="contact" value="{{ shop.contact_number }}" pattern="[0-9]{10,15}"
+                            title="Please enter 10 to 15 digits" required>
                     </div>
                 </div>
                 <div class="mb-3">

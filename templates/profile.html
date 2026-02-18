@@ -44,7 +44,8 @@
                     <div class="col-md-6">
                         <label for="phone" class="form-label">Phone Number</label>
                         <input type="tel" class="form-control" id="phone" name="phone"
-                            value="{{ user.phone_number or '' }}" placeholder="1234567890" pattern="[0-9]{10,15}">
+                            value="{{ user.phone_number or '' }}" placeholder="1234567890" pattern="[0-9]{10,15}"
+                            title="Please enter 10 to 15 digits">
                     </div>
 
                     <div class="col-md-6">

@@ -9,8 +9,13 @@
     </div>
     <div class="col-md-4">
         <form action="{{ url_for('list_shops') }}" method="get" class="d-flex">
-            <input class="form-control me-2" type="search" name="area" placeholder="Filter by Area in City"
-                aria-label="Search">
+            <input class="form-control me-2" type="search" name="area" placeholder="Filter by Area" aria-label="Search"
+                list="area-list" value="{{ area_filter or '' }}">
+            <datalist id="area-list">
+                {% for area in all_areas %}
+                <option value="{{ area }}">
+                    {% endfor %}
+            </datalist>
             <button class="btn btn-primary rounded-pill px-4" type="submit">
                 <i class="fas fa-search me-2"></i> Search
             </button>

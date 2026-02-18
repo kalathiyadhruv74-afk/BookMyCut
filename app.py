@@ -2,38 +2,23 @@ import os
 os.environ['PYTHONIOENCODING'] = 'utf-8'
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash, g
-import pymysql
-import pymysql.cursors
-
-# Use pymysql as MySQLdb
-pymysql.install_as_MySQLdb()
-import MySQLdb.cursors
+import sqlite3
 import re
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 
-class MySQL:
-    def __init__(self, app=None):
-        self.app = app
-        if app is not None:
-            self.init_app(app)
-
-    def init_app(self, app):
-        self.app = app
-        app.teardown_appcontext(self.teardown)
+class SQLite:
+    def __init__(self, db_path):
+        self.db_path = db_path
 
     @property
     def connection(self):
         if 'db_conn' not in g:
-            g.db_conn = pymysql.connect(
-                host=self.app.config['MYSQL_HOST'],
-                user=self.app.config['MYSQL_USER'],
-                password=self.app.config['MYSQL_PASSWORD'],
-                database=self.app.config['MYSQL_DB'],
-                charset=self.app.config.get('MYSQL_CHARSET', 'utf8mb4'),
-                cursorclass=pymysql.cursors.DictCursor
-            )
+            g.db_conn = sqlite3.connect(self.db_path)
+            g.db_conn.row_factory = sqlite3.Row
+            # Enable foreign keys for SQLite
+            g.db_conn.execute("PRAGMA foreign_keys = ON")
         return g.db_conn
 
     def teardown(self, exception):
@@ -41,27 +26,107 @@ class MySQL:
         if db_conn is not None:
             db_conn.close()
 
+# --- DS (Data Structures) for Search ---
+class TrieNode:
+    def __init__(self):
+        self.children = {}
+        self.is_end_of_word = False
+
+class ShopTrie:
+    def __init__(self):
+        self.root = TrieNode()
+
+    def insert(self, word):
+        if not word: return
+        node = self.root
+        for char in word.lower():
+            if char not in node.children:
+                node.children[char] = TrieNode()
+            node = node.children[char]
+        node.is_end_of_word = True
+
+    def search_prefix(self, prefix):
+        if not prefix: return True
+        node = self.root
+        for char in prefix.lower():
+            if char not in node.children:
+                return False
+            node = node.children[char]
+        return True
+
+    def get_all_with_prefix(self, prefix):
+        """Returns all words in the trie that start with prefix"""
+        if not prefix: return []
+        node = self.root
+        for char in prefix.lower():
+            if char not in node.children:
+                return []
+            node = node.children[char]
+        
+        results = []
+        self._dfs(node, prefix.lower(), results)
+        return results
+
+    def _dfs(self, node, prefix, results):
+        if node.is_end_of_word:
+            results.append(prefix)
+        for char, child_node in node.children.items():
+            self._dfs(child_node, prefix + char, results)
+
+# Initialize Search Index
+search_index = ShopTrie()
+
+def rebuild_search_index():
+    global search_index
+    search_index = ShopTrie()
+    with app.app_context():
+        # We can't use g here outside a request easily if not using app_context properly
+        # but since this runs in a thread or on startup, we'll connect directly
+        db_path = app.config['DATABASE']
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT DISTINCT area FROM shops")
+        areas = cursor.fetchall()
+        for area in areas:
+            if area[0]:
+                search_index.insert(area[0])
+        conn.close()
+
 app = Flask(__name__)
 
 # Secret key for sessions
 app.secret_key = 'your_secret_key'
 
-# Database Configuration (XAMPP Default)
-app.config['MYSQL_HOST'] = 'localhost'
-app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = '' # Default XAMPP password is empty
-app.config['MYSQL_DB'] = 'bookmycut_db'
+# Database Configuration (SQLite)
+app.config['DATABASE'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'profile_pics')
 app.config['SHOP_UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'shop_pics')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-app.config['MYSQL_CHARSET'] = 'utf8mb4'
-app.config['MYSQL_COLLATION'] = 'utf8mb4_unicode_ci'
 
-mysql = MySQL(app)
+db = SQLite(app.config['DATABASE'])
+app.teardown_appcontext(db.teardown)
+
+@app.template_filter('datetimeformat')
+def datetimeformat(value, format='%d %b, %H:%M'):
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        try:
+            # SQLite format usually YYYY-MM-DD HH:MM:SS
+            dt = datetime.strptime(value, '%Y-%m-%d %H:%M:%S')
+            return dt.strftime(format)
+        except ValueError:
+            return value
+    return value.strftime(format)
 
 # --- Helper Functions ---
+def is_valid_phone(phone):
+    """Simple regex to check for 10-15 digit phone numbers"""
+    if not phone: return False
+    return bool(re.match(r'^[0-9]{10,15}$', phone))
+
 def get_db_cursor():
-    return mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    return db.connection.cursor()
 
 def is_logged_in():
     return 'loggedin' in session
@@ -75,22 +140,23 @@ def inject_shop_status():
     if is_logged_in():
         from flask import g
         cursor = get_db_cursor()
-        cursor.execute("SELECT COUNT(*) as count FROM notifications WHERE user_id = %s AND is_read = FALSE", (session['id'],))
+        cursor.execute("SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = FALSE", (session['id'],))
         res = cursor.fetchone()
         unread_count = res['count'] if res else 0
 
     if is_logged_in() and is_owner():
         cursor = get_db_cursor()
-        cursor.execute('SELECT id FROM shops WHERE owner_id = %s', (session['id'],))
+        cursor.execute('SELECT id FROM shops WHERE owner_id = ?', (session['id'],))
         shop = cursor.fetchone()
         return {'owner_has_shop': shop is not None, 'owner_shop_id': shop['id'] if shop else None, 'unread_notifications': unread_count}
     return {'owner_has_shop': False, 'owner_shop_id': None, 'unread_notifications': unread_count}
 
 def create_notification(user_id, title, message, appointment_id=None):
     cursor = get_db_cursor()
-    cursor.execute('INSERT INTO notifications (user_id, appointment_id, title, message) VALUES (%s, %s, %s, %s)',
-                   (user_id, appointment_id, title, message))
-    mysql.connection.commit()
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    cursor.execute('INSERT INTO notifications (user_id, appointment_id, title, message, created_at) VALUES (?, ?, ?, ?, ?)',
+                   (user_id, appointment_id, title, message, now))
+    db.connection.commit()
 
 # --- Routes ---
 
@@ -102,7 +168,7 @@ def index():
     cursor.execute('SELECT COUNT(*) as count FROM shops')
     active_shops = cursor.fetchone()['count']
     
-    cursor.execute('SELECT COUNT(*) as count FROM appointments WHERE appointment_date >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)')
+    cursor.execute("SELECT COUNT(*) as count FROM appointments WHERE appointment_date >= date('now', '-1 month')")
     monthly_bookings = cursor.fetchone()['count']
     
     cursor.execute('SELECT AVG(rating) as avg_rating FROM reviews')
@@ -130,7 +196,7 @@ def login():
         password = request.form['password']
         
         cursor = get_db_cursor()
-        cursor.execute('SELECT * FROM users WHERE email = %s', (email,))
+        cursor.execute('SELECT * FROM users WHERE email = ?', (email,))
         account = cursor.fetchone()
         
         if account and check_password_hash(account['password'], password):
@@ -162,24 +228,29 @@ def register():
             role = 'customer'
 
         cursor = get_db_cursor()
-        cursor.execute('SELECT * FROM users WHERE email = %s', (email,))
+        cursor.execute('SELECT * FROM users WHERE email = ?', (email,))
         account = cursor.fetchone()
         
         if account:
             msg = 'Account already exists!'
         elif not re.match(r'[^@]+@[^@]+\.[^@]+', email):
             msg = 'Invalid email address!'
-        elif not name or not password or not email:
+        elif not name or not password or not email or not phone_number:
             msg = 'Please fill out the form!'
+        elif not is_valid_phone(phone_number):
+            msg = 'Phone number must be between 10 and 15 digits!'
+        elif role not in ['customer', 'shop_owner']:
+            msg = 'Invalid account role!'
         elif len(name) > 100:
             msg = 'Name must be less than 100 characters!'
         elif len(password) < 8:
             msg = 'Password must be at least 8 characters long!'
         else:
             hashed_password = generate_password_hash(password)
-            cursor.execute('INSERT INTO users (name, email, password, role, phone_number, gender, area) VALUES (%s, %s, %s, %s, %s, %s, %s)', 
-                           (name, email, hashed_password, role, phone_number, gender, area))
-            mysql.connection.commit()
+            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            cursor.execute('INSERT INTO users (name, email, password, role, phone_number, gender, area, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', 
+                           (name, email, hashed_password, role, phone_number, gender, area, now))
+            db.connection.commit()
             msg = 'You have successfully registered!'
             return redirect(url_for('login'))
             
@@ -213,7 +284,7 @@ def profile():
             flash('Name is required!', 'danger')
         elif len(name) > 100:
             flash('Name must be less than 100 characters!', 'danger')
-        elif phone and not re.match(r'^[0-9]{10,15}$', phone):
+        elif phone and not is_valid_phone(phone):
             flash('Phone number must be 10-15 digits!', 'danger')
         elif area and len(area) > 100:
             flash('Area must be less than 100 characters!', 'danger')
@@ -228,20 +299,20 @@ def profile():
                         unique_filename = f"{uuid.uuid4()}_{filename}"
                         try:
                             file.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_filename))
-                            cursor.execute('UPDATE users SET profile_pic = %s WHERE id = %s', (unique_filename, user_id))
+                            cursor.execute('UPDATE users SET profile_pic = ? WHERE id = ?', (unique_filename, user_id))
                         except Exception as e:
                             flash(f'Error saving profile picture: {str(e)}', 'danger')
                     else:
                         flash('Invalid profile picture type! Please upload an image (png, jpg, jpeg, gif).', 'danger')
             
-            cursor.execute('UPDATE users SET name = %s, phone_number = %s, gender = %s, area = %s WHERE id = %s', 
+            cursor.execute('UPDATE users SET name = ?, phone_number = ?, gender = ?, area = ? WHERE id = ?', 
                            (name, phone, gender, area, user_id))
-            mysql.connection.commit()
+            db.connection.commit()
             session['name'] = name # Update session name
             flash('Profile updated successfully!', 'success')
             return redirect(url_for('profile'))
         
-    cursor.execute('SELECT * FROM users WHERE id = %s', (user_id,))
+    cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
     user = cursor.fetchone()
     return render_template('profile.html', user=user)
 
@@ -254,7 +325,7 @@ def owner_dashboard():
     
     cursor = get_db_cursor()
     # Get Owner's Shop
-    cursor.execute('SELECT * FROM shops WHERE owner_id = %s', (session['id'],))
+    cursor.execute('SELECT * FROM shops WHERE owner_id = ?', (session['id'],))
     shop = cursor.fetchone()
     
     services = []
@@ -263,18 +334,18 @@ def owner_dashboard():
     
     if shop:
         # Get Services
-        cursor.execute('SELECT * FROM services WHERE shop_id = %s', (shop['id'],))
+        cursor.execute('SELECT * FROM services WHERE shop_id = ?', (shop['id'],))
         services = cursor.fetchall()
         
         # Get Appointments (with joins for user details, multiple services, and total duration)
         cursor.execute('''
-            SELECT a.*, u.name as user_name, GROUP_CONCAT(s.name SEPARATOR ', ') as services_list, p.amount, p.status as payment_status
+            SELECT a.*, u.name as user_name, GROUP_CONCAT(s.name, ', ') as services_list, p.amount, p.status as payment_status
             FROM appointments a 
             JOIN users u ON a.user_id = u.id 
             LEFT JOIN appointment_services asrv ON a.id = asrv.appointment_id
             LEFT JOIN services s ON asrv.service_id = s.id
             LEFT JOIN payments p ON a.id = p.appointment_id
-            WHERE a.shop_id = %s
+            WHERE a.shop_id = ?
             GROUP BY a.id
             ORDER BY a.appointment_date DESC, a.appointment_time DESC
         ''', (shop['id'],))
@@ -285,7 +356,7 @@ def owner_dashboard():
             SELECT r.*, u.name as user_name 
             FROM reviews r
             JOIN users u ON r.user_id = u.id
-            WHERE r.shop_id = %s
+            WHERE r.shop_id = ?
             ORDER BY r.created_at DESC
         ''', (shop['id'],))
         reviews = cursor.fetchall()
@@ -326,11 +397,14 @@ def add_shop():
             flash('Please fill out all required fields!', 'danger')
         elif len(name) > 100:
             flash('Shop name must be less than 100 characters!', 'danger')
+        elif not is_valid_phone(contact):
+            flash('Contact number must be 10-15 digits!', 'danger')
         else:
             cursor = get_db_cursor()
-            cursor.execute('INSERT INTO shops (owner_id, name, area, address, description, contact_number, shop_image) VALUES (%s, %s, %s, %s, %s, %s, %s)',
-                           (session['id'], name, area, address, description, contact, shop_image_name))
-            mysql.connection.commit()
+            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            cursor.execute('INSERT INTO shops (owner_id, name, area, address, description, contact_number, shop_image, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                           (session['id'], name, area, address, description, contact, shop_image_name, now))
+            db.connection.commit()
             flash('Shop created successfully!', 'success')
             return redirect(url_for('owner_dashboard'))
         
@@ -342,7 +416,7 @@ def edit_shop():
         return redirect(url_for('login'))
         
     cursor = get_db_cursor()
-    cursor.execute('SELECT * FROM shops WHERE owner_id = %s', (session['id'],))
+    cursor.execute('SELECT * FROM shops WHERE owner_id = ?', (session['id'],))
     shop = cursor.fetchone()
 
     if not shop:
@@ -357,7 +431,7 @@ def edit_shop():
         contact = request.form['contact']
         
         # Handle Shop Image
-        shop_image_name = shop.get('shop_image') # Keep existing by default
+        shop_image_name = shop['shop_image'] # Keep existing by default
         if 'shop_image' in request.files:
             file = request.files['shop_image']
             if file and file.filename != '':
@@ -385,10 +459,12 @@ def edit_shop():
         # Validation
         if not name or not area or not contact or not address:
             flash('Please fill out all required fields!', 'danger')
+        elif not is_valid_phone(contact):
+            flash('Contact number must be 10-15 digits!', 'danger')
         else:
-            cursor.execute('UPDATE shops SET name = %s, area = %s, address = %s, description = %s, contact_number = %s, shop_image = %s WHERE owner_id = %s',
+            cursor.execute('UPDATE shops SET name = ?, area = ?, address = ?, description = ?, contact_number = ?, shop_image = ? WHERE owner_id = ?',
                            (name, area, address, description, contact, shop_image_name, session['id']))
-            mysql.connection.commit()
+            db.connection.commit()
             flash('Shop details updated successfully!', 'success')
             return redirect(url_for('owner_dashboard'))
             
@@ -400,7 +476,7 @@ def add_service():
         return redirect(url_for('login'))
         
     cursor = get_db_cursor()
-    cursor.execute('SELECT id FROM shops WHERE owner_id = %s', (session['id'],))
+    cursor.execute('SELECT id FROM shops WHERE owner_id = ?', (session['id'],))
     shop = cursor.fetchone()
     
     if not shop:
@@ -425,9 +501,9 @@ def add_service():
         elif description and len(description) > 500:
             flash('Description must be less than 500 characters!', 'danger')
         else:
-            cursor.execute('INSERT INTO services (shop_id, name, description, price, duration_minutes) VALUES (%s, %s, %s, %s, %s)',
+            cursor.execute('INSERT INTO services (shop_id, name, description, price, duration_minutes) VALUES (?, ?, ?, ?, ?)',
                            (shop['id'], name, description, price, duration))
-            mysql.connection.commit()
+            db.connection.commit()
             flash('Service added successfully!', 'success')
             return redirect(url_for('owner_dashboard'))
         
@@ -443,12 +519,12 @@ def customer_dashboard():
     cursor = get_db_cursor()
     # Get user's appointments
     cursor.execute('''
-        SELECT a.*, GROUP_CONCAT(s.name SEPARATOR ', ') as services_list, sh.name as shop_name, sh.area
+        SELECT a.*, GROUP_CONCAT(s.name, ', ') as services_list, sh.name as shop_name, sh.area
         FROM appointments a
         LEFT JOIN appointment_services asrv ON a.id = asrv.appointment_id
         LEFT JOIN services s ON asrv.service_id = s.id
         JOIN shops sh ON a.shop_id = sh.id
-        WHERE a.user_id = %s
+        WHERE a.user_id = ?
         GROUP BY a.id
         ORDER BY a.appointment_date DESC
     ''', (session['id'],))
@@ -467,55 +543,76 @@ def inbox():
         FROM notifications n
         LEFT JOIN appointments a ON n.appointment_id = a.id
         LEFT JOIN shops s ON a.shop_id = s.id
-        WHERE n.user_id = %s 
+        WHERE n.user_id = ? 
         ORDER BY n.created_at DESC
     ''', (session['id'],))
     notifications = cursor.fetchall()
     
     # Mark all as read when visiting inbox
-    cursor.execute('UPDATE notifications SET is_read = TRUE WHERE user_id = %s', (session['id'],))
-    mysql.connection.commit()
+    cursor.execute('UPDATE notifications SET is_read = TRUE WHERE user_id = ?', (session['id'],))
+    db.connection.commit()
     
     return render_template('inbox.html', notifications=notifications)
 
 @app.route('/shops')
 def list_shops():
     cursor = get_db_cursor()
-    area_filter = request.args.get('area')
+    area_filter = request.args.get('area', '').strip()
     
+    # Get all unique areas for the datalist (autocomplete)
+    cursor.execute('SELECT DISTINCT area FROM shops WHERE area IS NOT NULL')
+    all_areas = [row['area'] for row in cursor.fetchall()]
+    
+    # Optionally rebuild index if new areas are found (simple version)
+    # In a real app, you'd do this on shop creation
+    for area in all_areas:
+        search_index.insert(area)
+
     query = 'SELECT * FROM shops'
     params = ()
     
     if area_filter:
-        query += ' WHERE area LIKE %s'
-        params = ('%' + area_filter + '%',)
+        # Use Trie to check if the prefix exists
+        if search_index.search_prefix(area_filter):
+            # If it's a valid prefix, we find all full area names that match
+            matching_areas = search_index.get_all_with_prefix(area_filter)
+            if matching_areas:
+                placeholders = ', '.join(['?'] * len(matching_areas))
+                query += f' WHERE area IN ({placeholders})'
+                params = tuple(matching_areas)
+            else:
+                # No full words found for this prefix
+                query += ' WHERE 1=0' 
+        else:
+            # Prefix doesn't exist in our DS
+            query += ' WHERE 1=0'
         
     cursor.execute(query, params)
-    shops = cursor.fetchall()
+    shops = [dict(row) for row in cursor.fetchall()]
     
-    # Optional: Get average rating for each shop (could be optimized)
+    # Get average rating for each shop
     for shop in shops:
-         cursor.execute('SELECT AVG(rating) as avg_rating FROM reviews WHERE shop_id = %s', (shop['id'],))
+         cursor.execute('SELECT AVG(rating) as avg_rating FROM reviews WHERE shop_id = ?', (shop['id'],))
          res = cursor.fetchone()
          shop['rating'] = round(res['avg_rating'], 1) if res['avg_rating'] else 'New'
 
-    return render_template('shops.html', shops=shops)
+    return render_template('shops.html', shops=shops, all_areas=all_areas, area_filter=area_filter)
 
 @app.route('/shop/<int:shop_id>')
 def shop_details(shop_id):
     cursor = get_db_cursor()
     
-    cursor.execute('SELECT * FROM shops WHERE id = %s', (shop_id,))
+    cursor.execute('SELECT * FROM shops WHERE id = ?', (shop_id,))
     shop = cursor.fetchone()
     
-    cursor.execute('SELECT * FROM services WHERE shop_id = %s', (shop_id,))
+    cursor.execute('SELECT * FROM services WHERE shop_id = ?', (shop_id,))
     services = cursor.fetchall()
     
     cursor.execute('''
         SELECT r.*, u.name as user_name 
         FROM reviews r
         JOIN users u ON r.user_id = u.id
-        WHERE r.shop_id = %s
+        WHERE r.shop_id = ?
         ORDER BY r.created_at DESC
     ''', (shop_id,))
     reviews = cursor.fetchall()
@@ -540,12 +637,12 @@ def book_confirm():
         return redirect(url_for('list_shops'))
 
     cursor = get_db_cursor()
-    cursor.execute('SELECT * FROM shops WHERE id = %s', (shop_id,))
+    cursor.execute('SELECT * FROM shops WHERE id = ?', (shop_id,))
     shop = cursor.fetchone()
     
     # Fetch selected services
-    format_strings = ','.join(['%s'] * len(service_ids))
-    cursor.execute(f'SELECT * FROM services WHERE id IN ({format_strings}) AND shop_id = %s', (*service_ids, shop_id))
+    format_strings = ','.join(['?'] * len(service_ids))
+    cursor.execute(f'SELECT * FROM services WHERE id IN ({format_strings}) AND shop_id = ?', (*service_ids, shop_id))
     selected_services = cursor.fetchall()
     
     if not selected_services:
@@ -560,34 +657,52 @@ def book_confirm():
     end_hour = 20  # 8 PM
     
     # Fetch existing appointments for the shop on the selected date
-    cursor.execute('SELECT appointment_time, total_duration FROM appointments WHERE shop_id = %s AND appointment_date = %s AND status != "cancelled"', 
+    cursor.execute('SELECT appointment_time, total_duration FROM appointments WHERE shop_id = ? AND appointment_date = ? AND status != "cancelled"', 
                    (shop_id, selected_date))
     existing_appointments = cursor.fetchall()
     
     # Convert existing appointments to time ranges
     booked_ranges = []
     for appt in existing_appointments:
-        # Convert TIME object to datetime for easier calculation
-        start_time = datetime.combine(datetime.today(), (datetime.min + appt['appointment_time']).time())
+        # SQLite returns string 'HH:MM:SS' or 'HH:MM'
+        appt_time = appt['appointment_time']
+        if isinstance(appt_time, str):
+            try:
+                time_obj = datetime.strptime(appt_time, "%H:%M:%S").time()
+            except ValueError:
+                time_obj = datetime.strptime(appt_time, "%H:%M").time()
+            start_time = datetime.combine(datetime.today(), time_obj)
+        else:
+            # Fallback for timedelta
+            start_time = datetime.combine(datetime.today(), (datetime.min + appt_time).time())
+            
         end_time = start_time + timedelta(minutes=int(appt['total_duration']))
         booked_ranges.append((start_time, end_time))
+
+    now_dt = datetime.now()
+    today_str = now_dt.strftime('%Y-%m-%d')
+    is_today = selected_date == today_str
 
     for hour in range(start_hour, end_hour):
         for minute in [0, 30]:
             slot_time_str = f"{hour:02d}:{minute:02d}"
-            slot_time_dt = datetime.combine(datetime.today(), datetime.strptime(slot_time_str, "%H:%M").time())
+            # Time objects for comparison
+            slot_time = datetime.strptime(slot_time_str, "%H:%M").time()
+            slot_time_dt = datetime.combine(datetime.today(), slot_time)
             
             is_booked = False
             for b_start, b_end in booked_ranges:
                 # A slot is booked if its start time falls within an existing appointment range
-                # OR if the existing appointment starts during this slot (less common for 30min slots but safer)
                 if b_start <= slot_time_dt < b_end:
                     is_booked = True
                     break
             
+            # Disable slot if it's already passed today
+            is_past = is_today and slot_time < now_dt.time()
+
             slots_data.append({
                 'time': slot_time_str,
-                'is_available': not is_booked
+                'is_available': not is_booked and not is_past
             })
     
     return render_template('book.html', shop=shop, services=selected_services, slots=slots_data, selected_date=selected_date, now=datetime.now().strftime('%Y-%m-%d'))
@@ -619,7 +734,7 @@ def process_booking():
     cursor = get_db_cursor()
     
     # Calculate total price and duration
-    format_strings = ','.join(['%s'] * len(service_ids))
+    format_strings = ','.join(['?'] * len(service_ids))
     cursor.execute(f'SELECT SUM(price) as total_price, SUM(duration_minutes) as total_duration FROM services WHERE id IN ({format_strings})', (*service_ids,))
     booking_info = cursor.fetchone()
     amount = booking_info['total_price']
@@ -629,12 +744,21 @@ def process_booking():
     requested_start = datetime.combine(datetime.today(), datetime.strptime(time, "%H:%M").time())
     requested_end = requested_start + timedelta(minutes=int(total_duration))
     
-    cursor.execute('SELECT appointment_time, total_duration FROM appointments WHERE shop_id = %s AND appointment_date = %s AND status != "cancelled"', 
+    cursor.execute('SELECT appointment_time, total_duration FROM appointments WHERE shop_id = ? AND appointment_date = ? AND status != "cancelled"', 
                    (shop_id, date))
     existing = cursor.fetchall()
     
     for appt in existing:
-        e_start = datetime.combine(datetime.today(), (datetime.min + appt['appointment_time']).time())
+        # SQLite returns string 'HH:MM:SS' or 'HH:MM'
+        if isinstance(appt['appointment_time'], str):
+            try:
+                time_obj = datetime.strptime(appt['appointment_time'], "%H:%M:%S").time()
+            except ValueError:
+                time_obj = datetime.strptime(appt['appointment_time'], "%H:%M").time()
+            e_start = datetime.combine(datetime.today(), time_obj)
+        else:
+            e_start = datetime.combine(datetime.today(), (datetime.min + appt['appointment_time']).time())
+            
         e_end = e_start + timedelta(minutes=int(appt['total_duration']))
         
         # Overlap check: (Start1 < End2) AND (End1 > Start2)
@@ -644,15 +768,16 @@ def process_booking():
     # --- End Check ---
 
     # Insert Appointment with total_price
-    cursor.execute('INSERT INTO appointments (user_id, shop_id, appointment_date, appointment_time, total_duration, total_price, status, payment_status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
-                   (session['id'], shop_id, date, time, total_duration, amount, 'pending', 'unpaid'))
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    cursor.execute('INSERT INTO appointments (user_id, shop_id, appointment_date, appointment_time, total_duration, total_price, status, payment_status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                   (session['id'], shop_id, date, time, total_duration, amount, 'pending', 'unpaid', now))
     appointment_id = cursor.lastrowid
 
     # Insert into appointment_services
     for s_id in service_ids:
-        cursor.execute('INSERT INTO appointment_services (appointment_id, service_id) VALUES (%s, %s)', (appointment_id, s_id))
+        cursor.execute('INSERT INTO appointment_services (appointment_id, service_id) VALUES (?, ?)', (appointment_id, s_id))
     
-    mysql.connection.commit()
+    db.connection.commit()
     
     # Redirect to Payment with FULL amount (choice will be made in template)
     create_notification(session['id'], "Booking Initiated", f"Your appointment for {date} at {time} has been initiated. Please complete the payment to confirm.", appointment_id)
@@ -674,20 +799,49 @@ def payment(appointment_id, amount):
         
         cursor = get_db_cursor()
         
+        # --- Amount Logic Verification ---
+        # Re-fetch appointment to get total_price from server-side
+        cursor.execute('SELECT total_price FROM appointments WHERE id = ?', (appointment_id,))
+        appt_data = cursor.fetchone()
+        if not appt_data:
+            flash('Invalid appointment session.', 'danger')
+            return redirect(url_for('customer_dashboard'))
+            
+        expected_full = float(appt_data['total_price'])
+        expected_half = expected_full / 2
+        
+        # Verification based on plan
+        is_val_passed = (is_final_passed == '1')
+        if is_val_passed:
+            # Paying the remaining half
+            if abs(actual_amount - expected_half) > 0.01:
+                flash('Payment amount mismatch detected.', 'danger')
+                return redirect(url_for('customer_dashboard'))
+        elif payment_plan == 'full':
+            if abs(actual_amount - expected_full) > 0.01:
+                flash('Payment amount mismatch detected.', 'danger')
+                return redirect(url_for('customer_dashboard'))
+        elif payment_plan == 'half':
+            if abs(actual_amount - expected_half) > 0.01:
+                flash('Payment amount mismatch detected.', 'danger')
+                return redirect(url_for('customer_dashboard'))
+        # --- End Verification ---
+        
         # Insert payment record
-        cursor.execute('INSERT INTO payments (appointment_id, amount, payment_method, status) VALUES (%s, %s, %s, %s)',
-                       (appointment_id, actual_amount, payment_method, 'completed'))
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        cursor.execute('INSERT INTO payments (appointment_id, amount, payment_method, status, transaction_date) VALUES (?, ?, ?, ?, ?)',
+                       (appointment_id, actual_amount, payment_method, 'completed', now))
         
         # Determine new payment status and update booking status if it's the initial payment
         if is_final_passed == '1' or payment_plan == 'full':
-            cursor.execute('UPDATE appointments SET payment_status = "paid" WHERE id = %s', (appointment_id,))
+            cursor.execute('UPDATE appointments SET payment_status = "paid" WHERE id = ?', (appointment_id,))
         else:
-            cursor.execute('UPDATE appointments SET payment_status = "partially_paid" WHERE id = %s', (appointment_id,))
+            cursor.execute('UPDATE appointments SET payment_status = "partially_paid" WHERE id = ?', (appointment_id,))
             
         # Only move from pending to confirmed during the initial payment phase
-        cursor.execute('UPDATE appointments SET status = "confirmed" WHERE id = %s AND status = "pending"', (appointment_id,))
+        cursor.execute('UPDATE appointments SET status = "confirmed" WHERE id = ? AND status = "pending"', (appointment_id,))
             
-        mysql.connection.commit()
+        db.connection.commit()
         
         # Get Shop Owner ID and Customer/Shop Name for notifications
         cursor.execute('''
@@ -695,7 +849,7 @@ def payment(appointment_id, amount):
             FROM appointments a 
             JOIN shops s ON a.shop_id = s.id 
             JOIN users u ON a.user_id = u.id 
-            WHERE a.id = %s
+            WHERE a.id = ?
         ''', (appointment_id,))
         details = cursor.fetchone()
         
@@ -717,7 +871,7 @@ def cancel_appointment(appointment_id):
         
     cursor = get_db_cursor()
     # Check if appointment belongs to user or if user is the shop owner
-    cursor.execute('SELECT * FROM appointments WHERE id = %s', (appointment_id,))
+    cursor.execute('SELECT * FROM appointments WHERE id = ?', (appointment_id,))
     appt = cursor.fetchone()
     
     if not appt:
@@ -727,7 +881,7 @@ def cancel_appointment(appointment_id):
     # Check ownership
     is_owner = False
     if session.get('role') == 'shop_owner':
-        cursor.execute('SELECT * FROM shops WHERE id = %s AND owner_id = %s', (appt['shop_id'], session['id']))
+        cursor.execute('SELECT * FROM shops WHERE id = ? AND owner_id = ?', (appt['shop_id'], session['id']))
         if cursor.fetchone():
             is_owner = True
             
@@ -735,8 +889,8 @@ def cancel_appointment(appointment_id):
         flash('Unauthorized action.', 'danger')
         return redirect(url_for('index'))
         
-    cursor.execute('UPDATE appointments SET status = "cancelled" WHERE id = %s', (appointment_id,))
-    mysql.connection.commit()
+    cursor.execute('UPDATE appointments SET status = "cancelled" WHERE id = ?', (appointment_id,))
+    db.connection.commit()
     
     # Get details for cross-notification
     cursor.execute('''
@@ -744,7 +898,7 @@ def cancel_appointment(appointment_id):
         FROM appointments a 
         JOIN shops s ON a.shop_id = s.id 
         JOIN users u ON a.user_id = u.id 
-        WHERE a.id = %s
+        WHERE a.id = ?
     ''', (appointment_id,))
     details = cursor.fetchone()
 
@@ -769,18 +923,18 @@ def complete_appointment(appointment_id):
     cursor.execute('''
         SELECT a.* FROM appointments a 
         JOIN shops s ON a.shop_id = s.id 
-        WHERE a.id = %s AND s.owner_id = %s
+        WHERE a.id = ? AND s.owner_id = ?
     ''', (appointment_id, session['id']))
     
     if not cursor.fetchone():
         flash('Unauthorized action.', 'danger')
         return redirect(url_for('owner_dashboard'))
         
-    cursor.execute('UPDATE appointments SET status = "completed" WHERE id = %s', (appointment_id,))
-    mysql.connection.commit()
+    cursor.execute('UPDATE appointments SET status = "completed" WHERE id = ?', (appointment_id,))
+    db.connection.commit()
     
     # Get user_id for the appointment to notify them
-    cursor.execute('SELECT user_id FROM appointments WHERE id = %s', (appointment_id,))
+    cursor.execute('SELECT user_id FROM appointments WHERE id = ?', (appointment_id,))
     appt = cursor.fetchone()
     create_notification(appt['user_id'], "Service Completed", "Your grooming session is complete. We hope you enjoyed the service!", appointment_id)
     
@@ -793,7 +947,7 @@ def pay_remaining(appointment_id):
         return redirect(url_for('login'))
         
     cursor = get_db_cursor()
-    cursor.execute('SELECT * FROM appointments WHERE id = %s AND user_id = %s', (appointment_id, session['id']))
+    cursor.execute('SELECT * FROM appointments WHERE id = ? AND user_id = ?', (appointment_id, session['id']))
     appt = cursor.fetchone()
     
     if not appt:
@@ -829,9 +983,10 @@ def add_review():
         flash('Comment must be less than 500 characters!', 'danger')
     else:
         cursor = get_db_cursor()
-        cursor.execute('INSERT INTO reviews (user_id, shop_id, rating, comment) VALUES (%s, %s, %s, %s)',
-                       (session['id'], shop_id, rating, comment))
-        mysql.connection.commit()
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        cursor.execute('INSERT INTO reviews (user_id, shop_id, rating, comment, created_at) VALUES (?, ?, ?, ?, ?)',
+                       (session['id'], shop_id, rating, comment, now))
+        db.connection.commit()
         flash('Review submitted!', 'success')
     
     return redirect(url_for('shop_details', shop_id=shop_id))
