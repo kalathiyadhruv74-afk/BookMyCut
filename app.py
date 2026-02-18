@@ -513,6 +513,78 @@ def add_service():
         
     return render_template('add_service.html')
 
+@app.route('/owner/edit_service/<int:service_id>', methods=['GET', 'POST'])
+def edit_service(service_id):
+    if not is_logged_in() or not is_owner():
+        return redirect(url_for('login'))
+        
+    cursor = get_db_cursor()
+    # Ensure the service belongs to a shop owned by the current user
+    cursor.execute('''
+        SELECT s.*, sh.owner_id 
+        FROM services s 
+        JOIN shops sh ON s.shop_id = sh.id 
+        WHERE s.id = ? AND sh.owner_id = ?
+    ''', (service_id, session['id']))
+    service = cursor.fetchone()
+    
+    if not service:
+        flash('Service not found or unauthorized access!', 'danger')
+        return redirect(url_for('owner_dashboard'))
+
+    if request.method == 'POST':
+        name = request.form['name']
+        price = request.form['price']
+        duration = request.form['duration']
+        description = request.form['description']
+        
+        # Validation
+        if not name or not price or not duration:
+            flash('Please fill out all required fields!', 'danger')
+        elif len(name) > 100:
+            flash('Service name must be less than 100 characters!', 'danger')
+        elif float(price) <= 0:
+            flash('Price must be greater than 0!', 'danger')
+        elif int(duration) <= 0:
+            flash('Duration must be greater than 0!', 'danger')
+        elif description and len(description) > 500:
+            flash('Description must be less than 500 characters!', 'danger')
+        else:
+            cursor.execute('''
+                UPDATE services 
+                SET name = ?, description = ?, price = ?, duration_minutes = ? 
+                WHERE id = ?
+            ''', (name, description, price, duration, service_id))
+            db.connection.commit()
+            flash('Service updated successfully!', 'success')
+            return redirect(url_for('owner_dashboard'))
+        
+    return render_template('edit_service.html', service=service)
+
+@app.route('/owner/delete_service/<int:service_id>', methods=['POST'])
+def delete_service(service_id):
+    if not is_logged_in() or not is_owner():
+        return redirect(url_for('login'))
+        
+    cursor = get_db_cursor()
+    # Ensure the service belongs to a shop owned by the current user
+    cursor.execute('''
+        SELECT s.id 
+        FROM services s 
+        JOIN shops sh ON s.shop_id = sh.id 
+        WHERE s.id = ? AND sh.owner_id = ?
+    ''', (service_id, session['id']))
+    service = cursor.fetchone()
+    
+    if not service:
+        flash('Service not found or unauthorized access!', 'danger')
+        return redirect(url_for('owner_dashboard'))
+
+    cursor.execute('DELETE FROM services WHERE id = ?', (service_id,))
+    db.connection.commit()
+    flash('Service deleted successfully!', 'success')
+    return redirect(url_for('owner_dashboard'))
+
 # --- Customer Routes ---
 
 @app.route('/dashboard')
