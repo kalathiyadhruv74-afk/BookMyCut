@@ -2,7 +2,7 @@ import sqlite3
 import os
 
 def init_db():
-    db_path = 'database.db'
+    db_path = os.environ.get('DATABASE_PATH', 'database.db')
     schema_path = 'database_sqlite.sql'
     
     # Connect to SQLite database

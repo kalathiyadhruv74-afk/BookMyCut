@@ -99,13 +99,18 @@ def rebuild_search_index():
 app = Flask(__name__)
 
 # Secret key for sessions
-app.secret_key = 'your_secret_key'
+app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key_change_this_on_render')
 
 # Database Configuration (SQLite)
-app.config['DATABASE'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')
-app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'profile_pics')
-app.config['SHOP_UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'shop_pics')
+app.config['DATABASE'] = os.environ.get('DATABASE_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db'))
+app.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'profile_pics'))
+app.config['SHOP_UPLOAD_FOLDER'] = os.environ.get('SHOP_UPLOAD_FOLDER', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'shop_pics'))
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+# Ensure upload directories exist
+for folder in [app.config['UPLOAD_FOLDER'], app.config['SHOP_UPLOAD_FOLDER']]:
+    if not os.path.exists(folder):
+        os.makedirs(folder, exist_ok=True)
 
 db = SQLite(app.config['DATABASE'])
 app.teardown_appcontext(db.teardown)
