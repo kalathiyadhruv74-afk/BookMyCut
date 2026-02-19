@@ -157,8 +157,8 @@ def inject_shop_status():
         cursor = get_db_cursor()
         cursor.execute('SELECT id FROM shops WHERE owner_id = ?', (session['id'],))
         shop = cursor.fetchone()
-        return {'owner_has_shop': shop is not None, 'owner_shop_id': shop['id'] if shop else None, 'unread_notifications': unread_count}
-    return {'owner_has_shop': False, 'owner_shop_id': None, 'unread_notifications': unread_count}
+        return {'owner_has_shop': shop is not None, 'owner_shop_id': shop['id'] if shop else None, 'unread_notifications': unread_count, 'get_now': get_now}
+    return {'owner_has_shop': False, 'owner_shop_id': None, 'unread_notifications': unread_count, 'get_now': get_now}
 
 def create_notification(user_id, title, message, appointment_id=None):
     cursor = get_db_cursor()
@@ -590,6 +590,77 @@ def delete_service(service_id):
     flash('Service deleted successfully!', 'success')
     return redirect(url_for('owner_dashboard'))
 
+@app.route('/owner/dayoffs')
+def manage_dayoffs():
+    if not is_logged_in() or not is_owner():
+        return redirect(url_for('login'))
+    
+    cursor = get_db_cursor()
+    cursor.execute('SELECT id FROM shops WHERE owner_id = ?', (session['id'],))
+    shop = cursor.fetchone()
+    
+    if not shop:
+        flash('Please create a shop first!', 'warning')
+        return redirect(url_for('add_shop'))
+    
+    cursor.execute('SELECT * FROM shop_dayoffs WHERE shop_id = ? ORDER BY off_date ASC', (shop['id'],))
+    dayoffs = cursor.fetchall()
+    
+    return render_template('manage_dayoffs.html', dayoffs=dayoffs)
+
+@app.route('/owner/add_dayoff', methods=['POST'])
+def add_dayoff():
+    if not is_logged_in() or not is_owner():
+        return redirect(url_for('login'))
+    
+    off_date = request.form.get('off_date')
+    reason = request.form.get('reason')
+    
+    if not off_date:
+        flash('Date is required!', 'danger')
+        return redirect(url_for('manage_dayoffs'))
+    
+    cursor = get_db_cursor()
+    cursor.execute('SELECT id FROM shops WHERE owner_id = ?', (session['id'],))
+    shop = cursor.fetchone()
+    
+    if not shop:
+        flash('Shop not found!', 'danger')
+        return redirect(url_for('owner_dashboard'))
+    
+    try:
+        cursor.execute('INSERT INTO shop_dayoffs (shop_id, off_date, reason) VALUES (?, ?, ?)', (shop['id'], off_date, reason))
+        db.connection.commit()
+        flash('Day off added successfully!', 'success')
+    except sqlite3.IntegrityError:
+        flash('This date is already marked as a day off!', 'warning')
+    except Exception as e:
+        flash(f'Error adding day off: {str(e)}', 'danger')
+        
+    return redirect(url_for('manage_dayoffs'))
+
+@app.route('/owner/delete_dayoff/<int:dayoff_id>', methods=['POST'])
+def delete_dayoff(dayoff_id):
+    if not is_logged_in() or not is_owner():
+        return redirect(url_for('login'))
+    
+    cursor = get_db_cursor()
+    # Security check: Ensure the dayoff belongs to the owner's shop
+    cursor.execute('''
+        SELECT d.id FROM shop_dayoffs d
+        JOIN shops s ON d.shop_id = s.id
+        WHERE d.id = ? AND s.owner_id = ?
+    ''', (dayoff_id, session['id']))
+    
+    if not cursor.fetchone():
+        flash('Unauthorized action!', 'danger')
+        return redirect(url_for('owner_dashboard'))
+    
+    cursor.execute('DELETE FROM shop_dayoffs WHERE id = ?', (dayoff_id,))
+    db.connection.commit()
+    flash('Day off removed successfully!', 'success')
+    return redirect(url_for('manage_dayoffs'))
+
 # --- Customer Routes ---
 
 @app.route('/dashboard')
@@ -784,7 +855,6 @@ def book_confirm():
                     is_booked = True
                     break
             
-            # Disable slot if it's already passed today
             is_past = is_today and slot_time_dt < current_now
 
             slots_data.append({
@@ -792,7 +862,16 @@ def book_confirm():
                 'is_available': not is_booked and not is_past
             })
     
-    return render_template('book.html', shop=shop, services=selected_services, slots=slots_data, selected_date=selected_date, now=current_now.strftime('%Y-%m-%d'))
+    # Check if the selected date is a day off
+    cursor.execute('SELECT * FROM shop_dayoffs WHERE shop_id = ? AND off_date = ?', (shop_id, selected_date))
+    dayoff = cursor.fetchone()
+    is_dayoff = dayoff is not None
+    
+    if is_dayoff:
+        for slot in slots_data:
+            slot['is_available'] = False
+
+    return render_template('book.html', shop=shop, services=selected_services, slots=slots_data, selected_date=selected_date, now=current_now.strftime('%Y-%m-%d'), is_dayoff=is_dayoff, dayoff_reason=dayoff['reason'] if is_dayoff else None)
 
 @app.route('/process_booking', methods=['POST'])
 def process_booking():

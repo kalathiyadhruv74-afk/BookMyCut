@@ -101,3 +101,14 @@ CREATE TABLE IF NOT EXISTS notifications (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
 );
+
+-- Shop Day Offs Table
+CREATE TABLE IF NOT EXISTS shop_dayoffs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    shop_id INTEGER NOT NULL,
+    off_date DATE NOT NULL,
+    reason TEXT,
+    created_at TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+    FOREIGN KEY (shop_id) REFERENCES shops(id) ON DELETE CASCADE,
+    UNIQUE(shop_id, off_date)
+);

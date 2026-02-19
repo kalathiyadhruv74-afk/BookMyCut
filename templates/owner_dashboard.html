@@ -46,9 +46,12 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4 text-md-end mt-4 mt-md-0">
+        <div class="col-md-4 text-md-end mt-4 mt-md-0 d-flex flex-column gap-2 align-items-md-end">
             <a href="{{ url_for('edit_shop') }}" class="btn btn-outline-light rounded-pill px-4 card-hover-effect">
                 <i class="fas fa-sliders-h me-2"></i> Manage Shop
+            </a>
+            <a href="{{ url_for('manage_dayoffs') }}" class="btn btn-primary rounded-pill px-4 card-hover-effect">
+                <i class="fas fa-calendar-alt me-2"></i> Manage Day Offs
             </a>
         </div>
     </div>

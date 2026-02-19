@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Day Offs{% endblock %}
+
+{% block content %}
+<style>
+    /* Premium Flatpickr Styling */
+    .flatpickr-calendar {
+        background: var(--surface-color) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
+        border: 1px solid var(--inner-border) !important;
+        box-shadow: var(--shadow-xl) !important;
+        border-radius: 20px !important;
+        padding: 10px;
+    }
+
+    .flatpickr-day.selected,
+    .flatpickr-day.startRange,
+    .flatpickr-day.endRange {
+        background: var(--primary-color) !important;
+        border-color: var(--primary-color) !important;
+        box-shadow: 0 0 15px var(--primary-glow) !important;
+        color: white !important;
+    }
+
+    .flatpickr-day:hover {
+        background: var(--primary-glow) !important;
+        border-color: transparent !important;
+    }
+
+    .flatpickr-weekday {
+        color: var(--text-muted) !important;
+        font-weight: 600 !important;
+    }
+
+    .flatpickr-day {
+        color: var(--text-color) !important;
+        border-radius: 12px !important;
+    }
+
+    .flatpickr-day.flatpickr-disabled {
+        color: var(--text-muted) !important;
+        opacity: 0.3;
+    }
+
+    .flatpickr-day.today {
+        border-color: var(--primary-color) !important;
+    }
+
+    .flatpickr-months .flatpickr-month {
+        color: var(--text-color) !important;
+    }
+
+    .flatpickr-months .flatpickr-prev-month,
+    .flatpickr-months .flatpickr-next-month {
+        color: var(--text-color) !important;
+        fill: var(--text-color) !important;
+    }
+</style>
+
+<div class="row align-items-center mb-5 fade-in">
+    <div class="col-md-8">
+        <h1 class="fw-bold text-white mb-1">Manage Day Offs</h1>
+        <p class="text-muted">Schedule your shop's off-duty days to prevent unwanted bookings.</p>
+    </div>
+    <div class="col-md-4 text-md-end">
+        <a href="{{ url_for('owner_dashboard') }}" class="btn btn-outline-light rounded-pill px-4">
+            <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Add Day Off Form -->
+    <div class="col-lg-4">
+        <div class="class-card p-4 fade-in delay-1 overflow-hidden"
+            style="background: var(--card-sub-bg); border: 1px solid var(--inner-border); border-radius: 20px;">
+            <h4 class="mb-4 fw-bold text-white">Add New Day Off</h4>
+            <form action="{{ url_for('add_dayoff') }}" method="POST">
+                <div class="mb-4">
+                    <label for="off_date" class="form-label text-muted small">Select Date</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark border-white border-opacity-10 text-primary">
+                            <i class="fas fa-calendar-alt"></i>
+                        </span>
+                        <input type="text" class="form-control bg-dark text-white border-white border-opacity-10"
+                            id="off_date" name="off_date" required placeholder="Choose Date">
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label for="reason" class="form-label text-muted small">Reason (Optional)</label>
+                    <textarea class="form-control bg-dark text-white border-white border-opacity-10 rounded-3"
+                        id="reason" name="reason" rows="3"
+                        placeholder="e.g., Weekly holiday, maintenance..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 rounded-pill py-3 fw-bold">
+                    <i class="fas fa-plus-circle me-2"></i> Schedule Day Off
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Current Day Offs List -->
+    <div class="col-lg-8">
+        <div class="glass-card fade-in delay-2 overflow-hidden">
+            <div class="p-4 border-bottom border-white border-opacity-10">
+                <h4 class="mb-0 fw-bold text-white">Scheduled Day Offs</h4>
+            </div>
+            <div class="p-0">
+                {% if dayoffs %}
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0" style="--bs-table-bg: transparent;">
+                        <thead class="bg-white bg-opacity-5">
+                            <tr class="text-muted small">
+                                <th class="ps-4 py-3">Date</th>
+                                <th class="py-3">Reason</th>
+                                <th class="py-3 text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for day in dayoffs %}
+                            <tr class="border-bottom border-white border-opacity-5 align-middle">
+                                <td class="ps-4 py-4">
+                                    <div class="text-white fw-bold">{{ day.off_date }}</div>
+                                </td>
+                                <td class="py-4">
+                                    <span class="text-muted small">{{ day.reason if day.reason else 'No reason provided'
+                                        }}</span>
+                                </td>
+                                <td class="py-4 text-center">
+                                    <form action="{{ url_for('delete_dayoff', dayoff_id=day.id) }}" method="POST"
+                                        class="d-inline"
+                                        onsubmit="return confirm('Are you sure you want to remove this day off?');">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm rounded-circle px-2"
+                                            title="Remove Day Off">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-calendar-check fa-3x text-muted opacity-25 mb-3"></i>
+                    <p class="text-muted">No day offs scheduled yet. Your shop is open for all days!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        flatpickr("#off_date", {
+            dateFormat: "Y-m-d",
+            minDate: "today",
+            disableMobile: true
+        });
+    });
+</script>
+{% endblock %}
